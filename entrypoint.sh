@@ -40,6 +40,14 @@ if [ -n "$OPENROUTER_API_KEY" ]; then
     --auth-choice openrouter-api-key \
     --openrouter-api-key "$OPENROUTER_API_KEY"
 
+  # Ensure gateway auth is properly configured before server starts
+  node /openclaw/dist/entry.js config set gateway.auth.mode token
+  node /openclaw/dist/entry.js config set gateway.auth.token "$GATEWAY_TOKEN"
+  node /openclaw/dist/entry.js config set gateway.remote.token "$GATEWAY_TOKEN"
+
+  # Allow browser connections from localhost
+  node /openclaw/dist/entry.js config set --json gateway.controlUi.allowedOrigins '["http://localhost:3000"]'
+
   echo "[entrypoint] OpenClaw configured successfully"
 fi
 
