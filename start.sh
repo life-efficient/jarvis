@@ -1,60 +1,42 @@
 #!/bin/bash
-set -e
 
 echo "=========================================="
 echo "🚀 Starting Jarvis (OpenClaw + gbrain)"
 echo "=========================================="
 
+cd /app
+
 # Initialize gbrain database if needed
 if [ ! -f /app/.gbrain/brain.db ] && [ ! -d /app/.gbrain/brain.pglite ]; then
   echo ""
   echo "📚 Initializing gbrain database (PGLite)..."
-  cd /app && bun run gbrain/src/cli.ts init
+  bun run gbrain/src/cli.ts init || echo "GBrain init failed, continuing..."
 fi
 
 # Sync brain content
 echo ""
 echo "🔄 Syncing brain content..."
-cd /app && bun run gbrain/src/cli.ts sync --repo brain 2>/dev/null || true
-cd /app && bun run gbrain/src/cli.ts embed --stale 2>/dev/null || true
+bun run gbrain/src/cli.ts sync --repo brain 2>/dev/null || echo "Brain sync skipped"
+bun run gbrain/src/cli.ts embed --stale 2>/dev/null || echo "Embed skipped"
 
 echo ""
 echo "=========================================="
 echo "✨ Jarvis Infrastructure Ready"
 echo "=========================================="
-echo ""
 echo "🧠 Brain: /app/brain (PGLite vector search)"
 echo "🛠️  Skills: 28 gbrain skills available"
 echo "🔌 MCP: gbrain ready for OpenClaw"
 echo ""
-echo "=========================================="
-echo "🎯 Starting OpenClaw Gateway"
-echo "=========================================="
 
-cd /app
-
-# Set OpenClaw state directory
+# Set OpenClaw configuration
 export OPENCLAW_STATE_DIR=/app/.openclaw
-
-# Configure OpenClaw to use port 3000 (for Railway)
-# OpenClaw reads config from ~/.openclaw or OPENCLAW_STATE_DIR
+export OPENCLAW_GATEWAY_PORT=3000
 mkdir -p /app/.openclaw
 
-# Initialize config if needed (set gateway port to 3000)
-if [ ! -f /app/.openclaw/config.json ]; then
-  echo ""
-  echo "⚙️  Initializing OpenClaw config..."
-  # OpenClaw will auto-create config on first run
-  # It will prompt for setup via its chat interface
-fi
-
-echo ""
-echo "Starting OpenClaw daemon on port 3000..."
-echo "Once running, visit the Railway URL and go through the setup"
+echo "=========================================="
+echo "🎯 Starting OpenClaw Gateway on port 3000"
+echo "=========================================="
 echo ""
 
-# Run OpenClaw gateway in foreground mode (for container on port 3000)
-# It will initialize and configure itself via the web UI on first run
-# Gateway listens on OPENCLAW_GATEWAY_PORT (default 19001) - set to 3000 for Railway
-export OPENCLAW_GATEWAY_PORT=3000
+# Run OpenClaw gateway in foreground
 exec openclaw gateway run --allow-unconfigured
