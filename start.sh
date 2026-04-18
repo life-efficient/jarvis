@@ -16,6 +16,6 @@ echo "🎯 Starting OpenClaw on port ${PORT:-8080}"
 echo "=========================================="
 echo ""
 
-# Start OpenClaw server from compiled dist output
-# OpenClaw build outputs to dist/entry.js
-exec node /app/openclaw/dist/entry.js
+# Start OpenClaw gateway
+# The built Node entry point needs the 'gateway' subcommand to actually start the server
+exec node /app/openclaw/dist/entry.js gateway
