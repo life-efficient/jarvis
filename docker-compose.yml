@@ -13,6 +13,8 @@ services:
       - ./brain:/app/brain
       - ./memory:/app/memory
       - ./skills:/app/skills
+      # Startup script (for quick iteration)
+      - ./start.sh:/app/start.sh
       # PGLite database (survives restarts)
       - jarvis-db:/app/.gbrain
       # OpenClaw state
