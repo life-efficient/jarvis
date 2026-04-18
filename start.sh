@@ -53,6 +53,8 @@ echo "Starting OpenClaw daemon on port 3000..."
 echo "Once running, visit the Railway URL and go through the setup"
 echo ""
 
-# Run OpenClaw gateway in foreground mode (for container)
+# Run OpenClaw gateway in foreground mode (for container on port 3000)
 # It will initialize and configure itself via the web UI on first run
+# Gateway listens on OPENCLAW_GATEWAY_PORT (default 19001) - set to 3000 for Railway
+export OPENCLAW_GATEWAY_PORT=3000
 exec openclaw gateway run --allow-unconfigured
