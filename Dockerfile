@@ -10,16 +10,16 @@ RUN apt-get update && apt-get install -y \
     git curl python3 make g++ ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Bun
-RUN curl -fsSL https://bun.sh/install | bash
+# Install pnpm
+RUN npm install -g pnpm
 
-# Clone OpenClaw at latest version
-RUN git clone https://github.com/anthropics/openclaw.git . && \
+# Clone OpenClaw at specified version
+RUN git clone --depth 1 --branch "v2026.4.15" https://github.com/openclaw/openclaw.git . && \
     git log --oneline -1
 
 # Build OpenClaw
-RUN /root/.bun/bin/bun install && \
-    /root/.bun/bin/bun run build
+RUN pnpm install && \
+    pnpm run build
 
 # Runtime stage
 FROM node:22-bookworm
