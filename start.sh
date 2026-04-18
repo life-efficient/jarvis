@@ -2,7 +2,7 @@
 set -e
 
 echo "=========================================="
-echo "Starting Jarvis (OpenClaw + gbrain)"
+echo "🚀 Starting Jarvis (OpenClaw + gbrain)"
 echo "=========================================="
 
 # Initialize gbrain database if needed
@@ -16,46 +16,27 @@ fi
 echo ""
 echo "🔄 Syncing brain content..."
 cd /app && bun run gbrain/src/cli.ts sync --repo brain 2>/dev/null || true
-bun run gbrain/src/cli.ts embed --stale 2>/dev/null || true
-
-# Initialize OpenClaw workspace if needed
-if [ ! -f /app/.openclaw/config.json ]; then
-  echo ""
-  echo "⚙️  Configuring OpenClaw workspace..."
-  mkdir -p /app/.openclaw
-  cat > /app/.openclaw/config.json <<'EOF'
-{
-  "version": "1.0",
-  "workspace": "jarvis",
-  "permissions": {
-    "allowed": ["gbrain", "openclaw"]
-  }
-}
-EOF
-fi
-
-# Register gbrain MCP with OpenClaw
-echo ""
-echo "🔌 Registering gbrain MCP with OpenClaw..."
-# OpenClaw will auto-discover MCP servers from config
+cd /app && bun run gbrain/src/cli.ts embed --stale 2>/dev/null || true
 
 echo ""
 echo "=========================================="
-echo "✨ Jarvis Ready!"
+echo "✨ Jarvis Infrastructure Ready"
 echo "=========================================="
 echo ""
-echo "📍 Web UI: http://localhost:3000"
-echo "🧠 Brain: /app/brain (indexed with vector search)"
-echo "🛠️  Skills: 26+ gbrain skills + custom"
-echo "🗄️  Database: PGLite (local, persistent)"
+echo "🧠 Brain: /app/brain (PGLite vector search)"
+echo "🛠️  Skills: 28 gbrain skills available"
+echo "🔌 MCP: gbrain ready for OpenClaw"
 echo ""
-echo "Commands:"
-echo "  gbrain query 'your question'"
-echo "  gbrain search 'keyword'"
-echo "  gbrain doctor"
+echo "Starting OpenClaw..."
+echo "Visit the UI at the Railway URL once deployed"
 echo ""
+echo "=========================================="
 
-# Start OpenClaw
-echo "Starting OpenClaw gateway..."
+# Start OpenClaw in foreground (Railway will manage the process)
+# OpenClaw will initialize on first run with the onboarding flow
 cd /app
-exec openclaw run
+export OPENCLAW_PORT=3000
+export OPENCLAW_HOME=/app/.openclaw
+
+# Run OpenClaw (it will handle its own config and initialization)
+exec openclaw start

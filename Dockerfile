@@ -16,10 +16,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install OpenClaw
-RUN curl -sSL https://get.openclaw.io | bash || \
-    npm install -g @openclaw/cli || \
-    echo "OpenClaw install - will configure at runtime"
+# Install OpenClaw (global)
+RUN npm install -g openclaw@latest
 
 # Copy workspace (brain, skills, memory, identity)
 COPY brain/ /app/brain/
