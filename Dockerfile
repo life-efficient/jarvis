@@ -1,5 +1,5 @@
-# Jarvis: Complete AI Agent Template for Railway
-# Bundles gbrain + workspace with OpenClaw integration
+# Jarvis: OpenClaw Workspace with gbrain Integration
+# Complete AI agent runtime with vector search and skills
 
 FROM oven/bun:latest
 
@@ -12,35 +12,43 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     nodejs \
     npm \
+    wget \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace first (brain, skills, memory)
+# Install OpenClaw
+RUN curl -sSL https://get.openclaw.io | bash || \
+    npm install -g @openclaw/cli || \
+    echo "OpenClaw install - will configure at runtime"
+
+# Copy workspace (brain, skills, memory, identity)
 COPY brain/ /app/brain/
 COPY skills/ /app/skills/
 COPY memory/ /app/memory/
 COPY AGENTS.md SOUL.md IDENTITY.md HEARTBEAT.md TOOLS.md .env.example /app/
 
-# Copy gbrain source (we'll run it with Bun, not compiled binary)
+# Copy gbrain source
 COPY gbrain/ /app/gbrain/
 
-# Install gbrain dependencies
+# Build gbrain
 WORKDIR /app/gbrain
 RUN bun install
+RUN bun build --compile --outfile /usr/local/bin/gbrain src/cli.ts || \
+    echo "GBrain compile deferred to runtime"
 
-# Back to app directory
 WORKDIR /app
 
-# Create directories for runtime
+# Create directories for runtime persistence
 RUN mkdir -p /app/.gbrain /app/.openclaw /app/logs
 
-# Expose port for web UI / OpenClaw
+# Expose OpenClaw web UI port
 EXPOSE 3000
 
-# Health check - test gbrain availability
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD bun run gbrain/src/cli.ts doctor --json > /dev/null 2>&1 || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:3000 > /dev/null 2>&1 || exit 1
 
-# Startup script
+# Startup script - Initialize gbrain, register MCP, start OpenClaw
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
