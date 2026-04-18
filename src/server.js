@@ -401,6 +401,15 @@ app.get("/setup", requireSetupAuth, (_req, res) => {
   </div>
 
   <div class="card">
+    <h2>Device Pairing</h2>
+    <p class="muted">Approve devices to allow them to connect to OpenClaw. The Control UI needs approval to show the chat interface.</p>
+    <div id="pairingStatus" style="margin: 1rem 0; padding: 1rem; background: #f6f6f6; border-radius: 8px;">
+      <p>Loading pending devices...</p>
+    </div>
+    <div id="pairingDevices" style="margin-top: 1rem;"></div>
+  </div>
+
+  <div class="card">
     <h2>Debug console</h2>
     <p class="muted">Run a small allowlist of safe commands (no shell). Useful for debugging and recovery.</p>
 
@@ -1130,10 +1139,17 @@ app.post("/setup/api/pairing/approve", requireSetupAuth, async (req, res) => {
 
 // Device pairing helper (list + approve) to avoid needing SSH.
 app.get("/setup/api/devices/pending", requireSetupAuth, async (_req, res) => {
-  const r = await runCmd(OPENCLAW_NODE, clawArgs(["devices", "list"]));
-  const output = redactSecrets(r.output);
-  const requestIds = extractDeviceRequestIds(output);
-  return res.status(r.code === 0 ? 200 : 500).json({ ok: r.code === 0, requestIds, output });
+  const r = await runCmd(OPENCLAW_NODE, clawArgs(["devices", "list", "--json"]));
+  try {
+    const data = r.code === 0 ? JSON.parse(r.output) : {};
+    const pending = (data.pending || []).map(req => ({
+      id: req.requestId,
+      label: req.clientId + " (" + req.clientMode + ")"
+    }));
+    return res.json({ ok: r.code === 0, devices: pending });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: String(err) });
+  }
 });
 
 app.post("/setup/api/devices/approve", requireSetupAuth, async (req, res) => {
@@ -1362,7 +1378,9 @@ function attachGatewayAuthHeader(req) {
 }
 
 proxy.on("proxyReqWs", (_proxyReq, req) => {
-  attachGatewayAuthHeader(req);
+  if (!req?.headers?.authorization && OPENCLAW_GATEWAY_TOKEN) {
+    _proxyReq.setHeader("authorization", `Bearer ${OPENCLAW_GATEWAY_TOKEN}`);
+  }
 });
 
 app.use(requireDashboardAuth, async (req, res) => {

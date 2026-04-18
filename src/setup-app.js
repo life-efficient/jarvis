@@ -26,8 +26,87 @@
   var importRunEl = document.getElementById('importRun');
   var importOutEl = document.getElementById('importOut');
 
+  // Device pairing
+  var pairingStatusEl = document.getElementById('pairingStatus');
+  var pairingDevicesEl = document.getElementById('pairingDevices');
+
   function setStatus(s) {
     statusEl.textContent = s;
+  }
+
+  function loadPendingDevices() {
+    httpJson('/setup/api/devices/pending').then(function (response) {
+      var devices = response.devices || [];
+      if (!Array.isArray(devices) || devices.length === 0) {
+        pairingStatusEl.innerHTML = '<p style="color: #666; margin-bottom: 1rem;">No pending device requests yet. Click the button below to trigger a pairing request from the Control UI.</p>' +
+          '<button id="openClawButton" style="background:#0f172a; padding: 0.8rem 1.2rem;">Open Control UI (triggers pairing)</button>';
+        pairingDevicesEl.innerHTML = '';
+
+        var openBtn = document.getElementById('openClawButton');
+        openBtn.onclick = function () {
+          openBtn.disabled = true;
+          openBtn.textContent = 'Opening...';
+          // Get the gateway token and open Control UI
+          httpJson('/setup/api/config/raw').then(function (response) {
+            try {
+              var config = JSON.parse(response.content || '{}');
+              var token = config.gateway && config.gateway.auth && config.gateway.auth.token;
+              if (token) {
+                window.open('/openclaw/?token=' + encodeURIComponent(token), 'openclaw-ui');
+                openBtn.textContent = 'Opened - refreshing in 2s...';
+                setTimeout(loadPendingDevices, 2000);
+              } else {
+                openBtn.disabled = false;
+                openBtn.textContent = 'Open Control UI (triggers pairing)';
+                alert('Could not find gateway token in config');
+              }
+            } catch (e) {
+              openBtn.disabled = false;
+              openBtn.textContent = 'Open Control UI (triggers pairing)';
+              alert('Error parsing config: ' + e);
+            }
+          }).catch(function (err) {
+            openBtn.disabled = false;
+            openBtn.textContent = 'Open Control UI (triggers pairing)';
+            alert('Error getting config: ' + err);
+          });
+        };
+        return;
+      }
+
+      pairingStatusEl.innerHTML = '<p style="margin-bottom: 1rem;">Pending device approvals:</p>';
+      pairingDevicesEl.innerHTML = '';
+
+      devices.forEach(function (device) {
+        var deviceEl = document.createElement('div');
+        deviceEl.style.cssText = 'border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 0.5rem 0;';
+        deviceEl.innerHTML = '<p style="margin: 0 0 0.5rem 0;"><strong>' + (device.label || 'Unknown Device') + '</strong></p>' +
+          '<p style="margin: 0 0 0.75rem 0; color: #666; font-size: 0.9rem;">Request ID: <code>' + device.id + '</code></p>' +
+          '<button id="approve-' + device.id + '" style="background:#059669; padding: 0.6rem 1rem;">Approve</button>';
+        pairingDevicesEl.appendChild(deviceEl);
+
+        var btn = document.getElementById('approve-' + device.id);
+        btn.onclick = function () {
+          btn.disabled = true;
+          btn.textContent = 'Approving...';
+          httpJson('/setup/api/devices/approve', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ requestId: device.id })
+          }).then(function () {
+            btn.style.background = '#10b981';
+            btn.textContent = '✓ Approved';
+            setTimeout(loadPendingDevices, 1500);
+          }).catch(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Approve';
+            alert('Failed to approve device: ' + err);
+          });
+        };
+      });
+    }).catch(function (err) {
+      pairingStatusEl.innerHTML = '<p style="color: #ef4444;">Error loading devices: ' + err + '</p>';
+    });
   }
 
   function isInteractiveOAuth(optionValue, optionLabel) {
@@ -368,4 +447,7 @@
 
   // Load the rest of status (version/help) in parallel
   refreshStatus();
+
+  // Load pending device pairing requests
+  loadPendingDevices();
 })();
