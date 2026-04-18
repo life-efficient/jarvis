@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+
+# Database & state
+.gbrain/
+.openclaw/
+*.db
+*.sqlite
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Temp
+tmp/
+temp/
+.cache/
+
+# Keep brain, memory, skills - these are content
+# Don't ignore: brain/, memory/, skills/, mcps/
