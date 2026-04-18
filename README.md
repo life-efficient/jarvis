@@ -13,23 +13,30 @@ Everything runs in Docker: OpenClaw (runtime), gbrain (knowledge + vector search
 ✅ **Docker-native** — One container, local development, easy Railway deployment  
 ✅ **Extensible** — Add custom skills, MCPs, and UI components as needed  
 
-## Quick Start (Local)
+## Quick Start
 
-### Prerequisites
-- Docker & Docker Compose
-- `.env` file with API keys:
-  ```
-  OPENAI_API_KEY=sk-...
-  ANTHROPIC_API_KEY=sk-ant-...
-  ```
+### Deploy to Railway (Recommended)
 
-### Run Locally
+One-click deployment with persistent volumes. **See [RAILWAY.md](RAILWAY.md) for full instructions.**
+
+```bash
+# 1. Push to GitHub
+git push origin main
+
+# 2. Go to railway.app → Deploy from GitHub
+# 3. Set environment variables (OPENAI_API_KEY, etc.)
+# 4. Done! Railway auto-deploys and manages volumes
+```
+
+### Run Locally (Docker)
+
+Prerequisites: Docker & Docker Compose, `.env` file with API keys
 
 ```bash
 docker-compose up --build
 ```
 
-Visit `http://localhost:3000` → OpenClaw web UI (WhatsApp + web interface)
+Note: Local Docker setup has path issues with PGLite; Railway deployment is more reliable.
 
 ### Common Commands
 
