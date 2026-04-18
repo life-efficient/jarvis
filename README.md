@@ -1,166 +1,192 @@
-# Jarvis — AI Agent Template
+# OpenClaw Railway Template (1‑click deploy)
 
-A complete, production-ready template for spinning up a personal AI agent with a sophisticated knowledge base, vector search, and extensible skills.
+This repo packages **OpenClaw** for Railway with a small **/setup** web wizard so users can deploy and onboard **without running any commands**.
 
-Everything runs in Docker: OpenClaw (runtime), gbrain (knowledge + vector search), 26+ skills, and your workspace.
+## What you get
 
-## Features
+- **OpenClaw Gateway + Control UI** (served at `/` and `/openclaw`)
+- A friendly **Setup Wizard** at `/setup` (protected by a password)
+- Persistent state via **Railway Volume** (so config/credentials/memory survive redeploys)
+- One-click **Export backup** (so users can migrate off Railway later)
+- **Import backup** from `/setup` (advanced recovery)
 
-✅ **Vector search over your knowledge** — PGLite + pgvector, semantic + keyword hybrid search  
-✅ **26 gbrain skills** — Signal detection, brain-ops, enrichment, scheduling, reporting, and more  
-✅ **Skill routing** — RESOLVER.md dispatcher routes user intent to the right skill  
-✅ **Persistent brain** — Your notes, people, deals, concepts, ideas — all linked and searchable  
-✅ **Docker-native** — One container, local development, easy Railway deployment  
-✅ **Extensible** — Add custom skills, MCPs, and UI components as needed  
+## How it works (high level)
 
-## Quick Start
+- The container runs a wrapper web server.
+- The wrapper protects `/setup` (and the Control UI at `/openclaw`) with `SETUP_PASSWORD` using HTTP Basic auth.
+- During setup, the wrapper runs `openclaw onboard --non-interactive ...` inside the container, writes state to the volume, and then starts the gateway.
+- After setup, **`/` is OpenClaw**. The wrapper reverse-proxies all traffic (including WebSockets) to the local gateway process.
 
-### Deploy to Railway (Recommended)
+## Railway deploy instructions (what you’ll publish as a Template)
 
-One-click deployment with persistent volumes. **See [RAILWAY.md](RAILWAY.md) for full instructions.**
+In Railway Template Composer:
+
+1) Create a new template from this GitHub repo.
+2) Add a **Volume** mounted at `/data`.
+3) Set the following variables:
+
+Required:
+- `SETUP_PASSWORD` — user-provided password to access `/setup` and the Control UI (`/openclaw`) via HTTP Basic auth
+
+Recommended:
+- `OPENCLAW_STATE_DIR=/data/.openclaw`
+- `OPENCLAW_WORKSPACE_DIR=/data/workspace`
+
+Optional:
+- `OPENCLAW_GATEWAY_TOKEN` — if not set, the wrapper generates one (not ideal). In a template, set it using a generated secret.
+
+Notes:
+- This template pins OpenClaw to a released version by default via Docker build arg `OPENCLAW_GIT_REF` (override if you want `main`).
+
+4) Enable **Public Networking** (HTTP). Railway will assign a domain.
+   - This service listens on Railway’s injected `PORT` at runtime (recommended).
+5) Deploy.
+
+Then:
+- Visit `https://<your-app>.up.railway.app/setup`
+  - Your browser will prompt for **HTTP Basic auth**. Use any username; the password is `SETUP_PASSWORD`.
+- Complete setup
+- Visit `https://<your-app>.up.railway.app/` and `/openclaw` (same Basic auth)
+
+## Support / community
+
+- GitHub Issues: https://github.com/vignesh07/clawdbot-railway-template/issues
+- Discord: https://discord.com/invite/clawd
+
+If you’re filing a bug, please include the output of:
+- `/healthz`
+- `/setup/api/debug` (after authenticating to /setup)
+
+## Getting chat tokens (so you don’t have to scramble)
+
+### Telegram bot token
+1) Open Telegram and message **@BotFather**
+2) Run `/newbot` and follow the prompts
+3) BotFather will give you a token that looks like: `123456789:AA...`
+4) Paste that token into `/setup`
+
+### Discord bot token
+1) Go to the Discord Developer Portal: https://discord.com/developers/applications
+2) **New Application** → pick a name
+3) Open the **Bot** tab → **Add Bot**
+4) Copy the **Bot Token** and paste it into `/setup`
+5) Invite the bot to your server (OAuth2 URL Generator → scopes: `bot`, `applications.commands`; then choose permissions)
+
+## Persistence (Railway volume)
+
+Railway containers have an ephemeral filesystem. Only the mounted volume at `/data` persists across restarts/redeploys.
+
+What persists cleanly today:
+- **Custom skills / code:** anything under `OPENCLAW_WORKSPACE_DIR` (default: `/data/workspace`)
+- **Node global tools (npm/pnpm):** this template configures defaults so global installs land under `/data`:
+  - npm globals: `/data/npm` (binaries in `/data/npm/bin`)
+  - pnpm globals: `/data/pnpm` (binaries) + `/data/pnpm-store` (store)
+- **Python packages:** create a venv under `/data` (example below). The runtime image includes Python + venv support.
+
+What does *not* persist cleanly:
+- `apt-get install ...` (installs into `/usr/*`)
+- Homebrew installs (typically `/opt/homebrew` or similar)
+
+### Optional bootstrap hook
+
+If `/data/workspace/bootstrap.sh` exists, the wrapper will run it on startup (best-effort) before starting the gateway.
+Use this to initialize persistent install prefixes or create a venv.
+
+Example `bootstrap.sh`:
 
 ```bash
-# 1. Push to GitHub
-git push origin main
+#!/usr/bin/env bash
+set -euo pipefail
 
-# 2. Go to railway.app → Deploy from GitHub
-# 3. Set environment variables (OPENAI_API_KEY, etc.)
-# 4. Done! Railway auto-deploys and manages volumes
+# Example: create a persistent python venv
+python3 -m venv /data/venv || true
+
+# Example: ensure npm/pnpm dirs exist
+mkdir -p /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
 ```
 
-### Run Locally (Docker)
+## Troubleshooting
 
-Prerequisites: Docker & Docker Compose, `.env` file with API keys
+### “disconnected (1008): pairing required” / dashboard health offline
+
+This is not a crash — it means the gateway is running, but no device has been approved yet.
+
+Fix:
+- Open `/setup`
+- Use the **Debug Console**:
+  - `openclaw devices list`
+  - `openclaw devices approve <requestId>`
+
+If `openclaw devices list` shows no pending request IDs:
+- Make sure you’re visiting the Control UI at `/openclaw` (or your native app) and letting it attempt to connect
+  - Note: the Railway wrapper now proxies the gateway and injects the auth token automatically, so you should not need to paste the gateway token into the Control UI when using `/openclaw`.
+- Ensure your state dir is the Railway volume (recommended): `OPENCLAW_STATE_DIR=/data/.openclaw`
+- Check `/setup/api/debug` for the active state/workspace dirs + gateway readiness
+
+### “unauthorized: gateway token mismatch”
+
+The Control UI connects using `gateway.remote.token` and the gateway validates `gateway.auth.token`.
+
+Fix:
+- Re-run `/setup` so the wrapper writes both tokens.
+- Or set both values to the same token in config.
+
+### “Application failed to respond” / 502 Bad Gateway
+
+Most often this means the wrapper is up, but the gateway can’t start or can’t bind.
+
+Checklist:
+- Ensure you mounted a **Volume** at `/data` and set:
+  - `OPENCLAW_STATE_DIR=/data/.openclaw`
+  - `OPENCLAW_WORKSPACE_DIR=/data/workspace`
+- Ensure **Public Networking** is enabled (Railway will inject `PORT`).
+- Check Railway logs for the wrapper error: it will show `Gateway not ready:` with the reason.
+
+### Legacy CLAWDBOT_* env vars / multiple state directories
+
+If you see warnings about deprecated `CLAWDBOT_*` variables or state dir split-brain (e.g. `~/.openclaw` vs `/data/...`):
+- Use `OPENCLAW_*` variables only
+- Ensure `OPENCLAW_STATE_DIR=/data/.openclaw` and `OPENCLAW_WORKSPACE_DIR=/data/workspace`
+- Redeploy after fixing Railway Variables
+
+### Build OOM (out of memory) on Railway
+
+Building OpenClaw from source can exceed small memory tiers.
+
+Recommendations:
+- Use a plan with **2GB+ memory**.
+- If you see `Reached heap limit Allocation failed - JavaScript heap out of memory`, upgrade memory and redeploy.
+
+## Local smoke test
 
 ```bash
-docker-compose up --build
+docker build -t clawdbot-railway-template .
+
+docker run --rm -p 8080:8080 \
+  -e PORT=8080 \
+  -e SETUP_PASSWORD=test \
+  -e OPENCLAW_STATE_DIR=/data/.openclaw \
+  -e OPENCLAW_WORKSPACE_DIR=/data/workspace \
+  -v $(pwd)/.tmpdata:/data \
+  clawdbot-railway-template
+
+# open http://localhost:8080/setup (password: test)
 ```
-
-Note: Local Docker setup has path issues with PGLite; Railway deployment is more reliable.
-
-### Common Commands
-
-```bash
-# Search brain
-docker-compose exec jarvis gbrain query "tell me about deals"
-
-# List skills
-docker-compose exec jarvis gbrain features --json
-
-# Check health
-docker-compose exec jarvis gbrain doctor --json
-
-# Manual sync & embed
-docker-compose exec jarvis gbrain sync --repo brain && gbrain embed --stale
-
-# View logs
-docker-compose logs -f jarvis
-```
-
-## Architecture
-
-```
-jarvis/
-├── Dockerfile                    # Full stack in one image
-├── docker-compose.yml            # Local dev setup
-├── gbrain/                       # Vendored gbrain source
-├── brain/                        # Your knowledge base
-│   ├── people/                   # Contacts, relationships
-│   ├── companies/                # Organizations
-│   ├── deals/                    # Investments, transactions
-│   ├── meetings/                 # Conversations
-│   ├── concepts/                 # Frameworks, ideas
-│   └── schema.md, RESOLVER.md
-├── skills/                       # All 26 gbrain skills + custom
-├── memory/                       # Session continuity
-├── AGENTS.md                     # Agent instructions
-├── SOUL.md                       # Agent personality
-├── IDENTITY.md                   # Agent identity card
-└── TOOLS.md                      # Local config
-```
-
-## Customization
-
-### Add a Custom Skill
-
-1. Create `skills/my-skill/SKILL.md` with:
-   - YAML frontmatter: `triggers`, `description`, `contract`
-   - Skill logic and workflow
-
-2. Add trigger to `skills/RESOLVER.md`
-
-3. Skill is now callable by Claude via MCP
-
-See `skills/signal-detector/SKILL.md` for an example.
-
-### Add Knowledge
-
-Create a page in `brain/` following `brain/schema.md`:
-
-```markdown
-# Jane Doe
-
-CEO of Acme Corp, active investor.
-
-## Current State
-- Leading Series B round for climate tech
-- Based in SF
-
-## Open Threads
-- Interest in AI?
 
 ---
 
-**2026-04-18** | Met at conference, discussed funding.
-```
+## Official template / endorsements
 
-Run `gbrain sync && gbrain embed --stale` to index it.
+- Officially recommended by OpenClaw: <https://docs.openclaw.ai/railway>
+- Railway announcement (official): [Railway tweet announcing 1‑click OpenClaw deploy](https://x.com/railway/status/2015534958925013438)
 
-### Customize Identity
+  ![Railway official tweet screenshot](assets/railway-official-tweet.jpg)
 
-Edit:
-- `SOUL.md` — personality and values
-- `IDENTITY.md` — name, emoji, vibe
-- `AGENTS.md` — operating instructions
+- Endorsement from Railway CEO: [Jake Cooper tweet endorsing the OpenClaw Railway template](https://x.com/justjake/status/2015536083514405182)
 
-## Deployment to Railway
+  ![Jake Cooper endorsement tweet screenshot](assets/railway-ceo-endorsement.jpg)
 
-1. Push this repo to GitHub
-2. Create Railway project, link repo
-3. Set environment variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`)
-4. Railway auto-builds Dockerfile, deploys to production
-5. Brain, memory, and database persist via volumes
+- Created and maintained by **Vignesh N (@vignesh07)**
+- **11000+ deploys on Railway and counting** [Link to template on Railway](https://railway.com/deploy/clawdbot-railway-template)
 
-## What Gets Built In
-
-- **OpenClaw** — Runtime and gateway (WhatsApp + web UI)
-- **gbrain CLI** — Knowledge operations
-- **gbrain MCP** — Claude integration
-- **26 skills** — Signal detection, brain ops, enrichment, reporting, scheduling, etc.
-- **PGLite** — Embedded PostgreSQL + pgvector for vector search
-- **Brain structure** — People, companies, deals, concepts, ideas
-
-Ready to use. Just add your knowledge.
-
-## Next Steps
-
-1. **Add brain content** — Start filling `brain/people/`, `brain/deals/`, etc.
-2. **Customize skills** — Fork, extend, or add new skills in `skills/`
-3. **Build custom UI** — Add a Next.js app in `ui/` later (Phase 2)
-4. **Add MCPs** — Custom integrations in `mcps/` (e.g., Granola transcripts)
-
-## Documentation
-
-- `AGENTS.md` — How to work with the agent
-- `SOUL.md` — Agent personality
-- `brain/schema.md` — Page format standards
-- `brain/RESOLVER.md` — Where knowledge goes
-- `gbrain/docs/` — gbrain architecture & guides
-
-## License
-
-MIT
-
----
-
-**Jarvis** is a template. Fork it, customize it, make it your own.
+![Railway template deploy count](assets/railway-deploys.jpg)

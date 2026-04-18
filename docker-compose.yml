@@ -7,37 +7,10 @@ services:
       dockerfile: Dockerfile
     container_name: jarvis
     ports:
-      - "3000:3000"    # OpenClaw web UI
-    volumes:
-      # Persistent volumes for data
-      - ./brain:/app/brain
-      - ./memory:/app/memory
-      - ./skills:/app/skills
-      # Startup script (for quick iteration)
-      - ./start.sh:/app/start.sh
-      # PGLite database (survives restarts)
-      - jarvis-db:/app/.gbrain
-      # OpenClaw state
-      - jarvis-openclaw:/app/.openclaw
+      - "3000:3000"
     environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      JARVIS_ENV: development
-      # Timezone (adjust for your location)
-      TZ: UTC
+      PORT: 3000
+      SETUP_PASSWORD: ${SETUP_PASSWORD:-password}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     restart: unless-stopped
-    # Uncomment for interactive debugging
-    # stdin_open: true
-    # tty: true
-
-volumes:
-  jarvis-db:
-    driver: local
-  jarvis-openclaw:
-    driver: local
-
-# Usage:
-# docker-compose up --build          # Build and start
-# docker-compose down                # Stop
-# docker-compose logs -f jarvis      # View logs
-# docker-compose exec jarvis gbrain query "search term"  # Run gbrain commands

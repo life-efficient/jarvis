@@ -1,26 +1,17 @@
 [build]
-# Use Dockerfile for build
 builder = "dockerfile"
 
 [deploy]
-# Start command - already in Dockerfile
-startCommand = "bash /app/start.sh"
+healthcheckPath = "/setup/healthz"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
 
-[[services]]
-name = "jarvis"
-build.dockerfile = "Dockerfile"
+# Require a persistent volume mounted at /data (Railway).
+requiredMountPath = "/data"
 
-# Environment variables (set these in Railway dashboard)
-# OPENAI_API_KEY
-# ANTHROPIC_API_KEY
-# TZ=Asia/Riyadh
-
-# Volumes for persistence
-volumes = [
-  { sourceMount = "brain", destinationPath = "/app/brain" },
-  { sourceMount = "memory", destinationPath = "/app/memory" },
-  { sourceMount = "gbrain-db", destinationPath = "/app/.gbrain" }
-]
-
-[deploy.ports]
-http = 3000
+[variables]
+# NOTE: Railway injects PORT automatically.
+# Do not set PORT here; Railway templates may not apply it reliably and hardcoding
+# can cause domain routing mismatches.
+OPENCLAW_STATE_DIR = "/data/.openclaw"
+OPENCLAW_WORKSPACE_DIR = "/data/workspace"

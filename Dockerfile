@@ -1,72 +1,89 @@
-# Jarvis: OpenClaw Workspace with gbrain Integration
-# Complete AI agent runtime with vector search and skills
+# Build openclaw from source to avoid npm packaging gaps (some dist files are not shipped).
+FROM node:22-bookworm AS openclaw-build
 
-FROM node:22-bookworm AS openclaw-builder
+# Dependencies needed for openclaw build
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    git \
+    ca-certificates \
+    curl \
+    python3 \
+    make \
+    g++ \
+  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
+# Install Bun (openclaw build uses it)
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    git curl python3 make g++ ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+RUN corepack enable
 
-# Install pnpm
-RUN npm install -g pnpm
+WORKDIR /openclaw
 
-# Clone OpenClaw at specified version
-RUN git clone --depth 1 --branch "v2026.4.15" https://github.com/openclaw/openclaw.git . && \
-    git log --oneline -1
+# Pin to a known-good ref (tag/branch). Override in Railway template settings if needed.
+# Using a released tag avoids build breakage when `main` temporarily references unpublished packages.
+ARG OPENCLAW_GIT_REF=v2026.3.8
+RUN git clone --depth 1 --branch "${OPENCLAW_GIT_REF}" https://github.com/openclaw/openclaw.git .
 
-# Build OpenClaw
-RUN pnpm install && \
-    pnpm run build
+# Patch: relax version requirements for packages that may reference unpublished versions.
+# Apply to all extension package.json files to handle workspace protocol (workspace:*).
+RUN set -eux; \
+  find ./extensions -name 'package.json' -type f | while read -r f; do \
+    sed -i -E 's/"openclaw"[[:space:]]*:[[:space:]]*">=[^"]+"/"openclaw": "*"/g' "$f"; \
+    sed -i -E 's/"openclaw"[[:space:]]*:[[:space:]]*"workspace:[^"]+"/"openclaw": "*"/g' "$f"; \
+  done
 
-# Runtime stage
+RUN pnpm install --no-frozen-lockfile
+RUN pnpm build
+ENV OPENCLAW_PREFER_PNPM=1
+RUN pnpm ui:install && pnpm ui:build
+
+
+# Runtime image
 FROM node:22-bookworm
+ENV NODE_ENV=production
+
+RUN apt-get update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ca-certificates \
+    tini \
+    python3 \
+    python3-venv \
+  && rm -rf /var/lib/apt/lists/*
+
+# `openclaw update` expects pnpm. Provide it in the runtime image.
+RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
+
+# Persist user-installed tools by default by targeting the Railway volume.
+# - npm global installs -> /data/npm
+# - pnpm global installs -> /data/pnpm (binaries) + /data/pnpm-store (store)
+ENV NPM_CONFIG_PREFIX=/data/npm
+ENV NPM_CONFIG_CACHE=/data/npm-cache
+ENV PNPM_HOME=/data/pnpm
+ENV PNPM_STORE_DIR=/data/pnpm-store
+ENV PATH="/data/npm/bin:/data/pnpm:${PATH}"
 
 WORKDIR /app
 
-# Install minimal runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates tini python3 curl git && \
-    rm -rf /var/lib/apt/lists/*
+# Wrapper deps
+COPY package.json ./
+RUN npm install --omit=dev && npm cache clean --force
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Copy built openclaw
+COPY --from=openclaw-build /openclaw /openclaw
 
-# Set OpenClaw state directory (persistent via Railway volumes)
-ENV OPENCLAW_STATE_DIR=/data/openclaw \
-    OPENCLAW_TOOLS_DIR=/data/tools \
-    NODE_ENV=production
+# Provide an openclaw executable
+RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \
+  && chmod +x /usr/local/bin/openclaw
 
-# Copy workspace (brain, skills, memory, identity)
-COPY brain/ /app/brain/
-COPY skills/ /app/skills/
-COPY memory/ /app/memory/
-COPY AGENTS.md SOUL.md IDENTITY.md HEARTBEAT.md TOOLS.md /app/
+COPY src ./src
 
-# Copy gbrain source
-COPY gbrain/ /app/gbrain/
-RUN cd /app/gbrain && npm install
-
-# Copy OpenClaw from builder
-COPY --from=openclaw-builder /build /app/openclaw
-
-# Create persistent directories
-RUN mkdir -p /data/openclaw /data/tools /app/.gbrain /app/logs
-
-# Copy startup script
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-# Use tini as PID 1 for proper signal handling
-ENTRYPOINT ["/usr/bin/tini", "--"]
-
-# Railway injects PORT at runtime - don't hardcode it
+# The wrapper listens on $PORT.
+# IMPORTANT: Do not set a default PORT here.
+# Railway injects PORT at runtime and routes traffic to that port.
+# If we force a different port, deployments can come up but the domain will route elsewhere.
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-8080} > /dev/null 2>&1 || exit 1
-
-CMD ["/app/start.sh"]
+# Ensure PID 1 reaps zombies and forwards signals.
+ENTRYPOINT ["tini", "--"]
+CMD ["node", "src/server.js"]
