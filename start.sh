@@ -37,6 +37,12 @@ echo "=========================================="
 echo "🎯 Starting OpenClaw Gateway on port 3000"
 echo "=========================================="
 echo ""
+echo "Checking OpenClaw installation..."
+which openclaw && echo "✓ OpenClaw found" || echo "✗ OpenClaw not found"
 
-# Run OpenClaw gateway in foreground
-exec openclaw gateway run --allow-unconfigured
+echo "Starting gateway..."
+openclaw --version
+
+# Run OpenClaw gateway in foreground with output
+echo "Gateway starting..."
+openclaw gateway run --allow-unconfigured 2>&1
