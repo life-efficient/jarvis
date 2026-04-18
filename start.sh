@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "=========================================="
 echo "🚀 Starting Jarvis (OpenClaw + gbrain)"
@@ -6,18 +7,16 @@ echo "=========================================="
 
 cd /app
 
-# Initialize gbrain database if needed
-if [ ! -f /app/.gbrain/brain.db ] && [ ! -d /app/.gbrain/brain.pglite ]; then
-  echo ""
-  echo "📚 Initializing gbrain database (PGLite)..."
-  bun run gbrain/src/cli.ts init || echo "GBrain init failed, continuing..."
+# Initialize gbrain if needed
+if [ ! -d /app/.gbrain/brain.pglite ]; then
+  echo "📚 Initializing gbrain (PGLite)..."
+  cd /app/gbrain && npx ts-node -P tsconfig.json -O '{"module":"commonjs"}' src/cli.ts init || true
 fi
 
 # Sync brain content
-echo ""
-echo "🔄 Syncing brain content..."
-bun run gbrain/src/cli.ts sync --repo brain 2>/dev/null || echo "Brain sync skipped"
-bun run gbrain/src/cli.ts embed --stale 2>/dev/null || echo "Embed skipped"
+echo "🔄 Syncing brain..."
+cd /app/gbrain && npx ts-node -P tsconfig.json -O '{"module":"commonjs"}' src/cli.ts sync --repo ../brain 2>/dev/null || true
+cd /app/gbrain && npx ts-node -P tsconfig.json -O '{"module":"commonjs"}' src/cli.ts embed --stale 2>/dev/null || true
 
 echo ""
 echo "=========================================="
@@ -28,21 +27,22 @@ echo "🛠️  Skills: 28 gbrain skills available"
 echo "🔌 MCP: gbrain ready for OpenClaw"
 echo ""
 
-# Set OpenClaw configuration
-export OPENCLAW_STATE_DIR=/app/.openclaw
-export OPENCLAW_GATEWAY_PORT=3000
-mkdir -p /app/.openclaw
+# Create OpenClaw config directory
+mkdir -p /data/openclaw /data/tools
+
+# Pre-configure OpenClaw with API keys if provided
+if [ -n "$OPENAI_API_KEY" ] || [ -n "$ANTHROPIC_API_KEY" ]; then
+  echo "⚙️  Pre-configuring OpenClaw with API keys..."
+  # OpenClaw will use env vars if present, no need to write config files
+fi
 
 echo "=========================================="
-echo "🎯 Starting OpenClaw Gateway on port 3000"
+echo "🎯 Starting OpenClaw on port ${PORT:-8080}"
 echo "=========================================="
 echo ""
-echo "Checking OpenClaw installation..."
-which openclaw && echo "✓ OpenClaw found" || echo "✗ OpenClaw not found"
+echo "✓ Jarvis ready - visiting the URL will start OpenClaw"
+echo ""
 
-echo "Starting gateway..."
-openclaw --version
-
-# Run OpenClaw gateway in foreground with output
-echo "Gateway starting..."
-openclaw gateway run --allow-unconfigured 2>&1
+# Start OpenClaw server (uses NODE_ENV=production, OPENCLAW_STATE_DIR, PORT from Railway)
+cd /app/openclaw
+exec node src/server.js
