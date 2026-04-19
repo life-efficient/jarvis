@@ -1,192 +1,135 @@
-# OpenClaw Railway Template (1‑click deploy)
+# Jarvis — OpenClaw on Railway
 
-This repo packages **OpenClaw** for Railway with a small **/setup** web wizard so users can deploy and onboard **without running any commands**.
+Deploy a preconfigured AI agent on Railway with one click. Zero setup friction.
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new?templateUrl=https%3A%2F%2Fgithub.com%2Flife-efficient%2Fjarvis)
 
 ## What you get
 
 - **OpenClaw Gateway + Control UI** (served at `/` and `/openclaw`)
-- A friendly **Setup Wizard** at `/setup` (protected by a password)
-- Persistent state via **Railway Volume** (so config/credentials/memory survive redeploys)
-- One-click **Export backup** (so users can migrate off Railway later)
-- **Import backup** from `/setup` (advanced recovery)
+- **Preconfigured with OpenRouter** for flexible model access (Claude, GPT-4, Llama, etc.)
+- **Setup Wizard** at `/setup` for device pairing and configuration
+- **Persistent state** via Railway Volume (config/credentials/memory survive redeploys)
+- **One-click backup/restore** at `/setup` (easy migration)
 
-## How it works (high level)
+## Quick start
 
-- The container runs a wrapper web server.
-- The wrapper protects `/setup` (and the Control UI at `/openclaw`) with `SETUP_PASSWORD` using HTTP Basic auth.
-- During setup, the wrapper runs `openclaw onboard --non-interactive ...` inside the container, writes state to the volume, and then starts the gateway.
-- After setup, **`/` is OpenClaw**. The wrapper reverse-proxies all traffic (including WebSockets) to the local gateway process.
+1. Click the **Deploy on Railway** button above
+2. Railway will ask for:
+   - `SETUP_PASSWORD` — password to access setup wizard
+   - `OPENROUTER_API_KEY` — your OpenRouter API key ([get one free](https://openrouter.ai))
+3. Wait for the build to complete
+4. Visit `https://<your-railway-domain>/setup`
+   - Username: anything
+   - Password: the `SETUP_PASSWORD` you set
+5. Approve the Control UI for pairing
+6. Chat with your OpenClaw agent at `/`
 
-## Railway deploy instructions (what you’ll publish as a Template)
+## How it works
 
-In Railway Template Composer:
+- The container runs a wrapper web server that:
+  - Protects `/setup` and `/openclaw` with HTTP Basic auth
+  - Auto-configures OpenClaw with OpenRouter on first run
+  - Reverse-proxies requests (including WebSockets) to the local gateway
+- OpenClaw handles the AI agent, memory, workspace, and channel integrations
+- Everything persists to `/data` volume so state survives redeploys
 
-1) Create a new template from this GitHub repo.
-2) Add a **Volume** mounted at `/data`.
-3) Set the following variables:
+## Configuration
 
-Required:
-- `SETUP_PASSWORD` — user-provided password to access `/setup` and the Control UI (`/openclaw`) via HTTP Basic auth
+The wrapper automatically configures:
+- ✅ OpenRouter as the model provider (from `OPENROUTER_API_KEY`)
+- ✅ Device pairing approval UI
+- ✅ Workspace identity files (SOUL.md, IDENTITY.md, USER.md, etc.)
 
-Recommended:
-- `OPENCLAW_STATE_DIR=/data/.openclaw`
-- `OPENCLAW_WORKSPACE_DIR=/data/workspace`
+You can customize further in the **Setup Wizard** at `/setup`:
+- Add Telegram/Discord/Slack bots
+- Edit the agent's personality (SOUL.md, IDENTITY.md)
+- Configure advanced settings (via Debug Console or Config Editor)
 
-Optional:
-- `OPENCLAW_GATEWAY_TOKEN` — if not set, the wrapper generates one (not ideal). In a template, set it using a generated secret.
-
-Notes:
-- This template pins OpenClaw to a released version by default via Docker build arg `OPENCLAW_GIT_REF` (override if you want `main`).
-
-4) Enable **Public Networking** (HTTP). Railway will assign a domain.
-   - This service listens on Railway’s injected `PORT` at runtime (recommended).
-5) Deploy.
-
-Then:
-- Visit `https://<your-app>.up.railway.app/setup`
-  - Your browser will prompt for **HTTP Basic auth**. Use any username; the password is `SETUP_PASSWORD`.
-- Complete setup
-- Visit `https://<your-app>.up.railway.app/` and `/openclaw` (same Basic auth)
-
-## Support / community
-
-- GitHub Issues: https://github.com/vignesh07/clawdbot-railway-template/issues
-- Discord: https://discord.com/invite/clawd
-
-If you’re filing a bug, please include the output of:
-- `/healthz`
-- `/setup/api/debug` (after authenticating to /setup)
-
-## Getting chat tokens (so you don’t have to scramble)
-
-### Telegram bot token
-1) Open Telegram and message **@BotFather**
-2) Run `/newbot` and follow the prompts
-3) BotFather will give you a token that looks like: `123456789:AA...`
-4) Paste that token into `/setup`
-
-### Discord bot token
-1) Go to the Discord Developer Portal: https://discord.com/developers/applications
-2) **New Application** → pick a name
-3) Open the **Bot** tab → **Add Bot**
-4) Copy the **Bot Token** and paste it into `/setup`
-5) Invite the bot to your server (OAuth2 URL Generator → scopes: `bot`, `applications.commands`; then choose permissions)
-
-## Persistence (Railway volume)
-
-Railway containers have an ephemeral filesystem. Only the mounted volume at `/data` persists across restarts/redeploys.
-
-What persists cleanly today:
-- **Custom skills / code:** anything under `OPENCLAW_WORKSPACE_DIR` (default: `/data/workspace`)
-- **Node global tools (npm/pnpm):** this template configures defaults so global installs land under `/data`:
-  - npm globals: `/data/npm` (binaries in `/data/npm/bin`)
-  - pnpm globals: `/data/pnpm` (binaries) + `/data/pnpm-store` (store)
-- **Python packages:** create a venv under `/data` (example below). The runtime image includes Python + venv support.
-
-What does *not* persist cleanly:
-- `apt-get install ...` (installs into `/usr/*`)
-- Homebrew installs (typically `/opt/homebrew` or similar)
-
-### Optional bootstrap hook
-
-If `/data/workspace/bootstrap.sh` exists, the wrapper will run it on startup (best-effort) before starting the gateway.
-Use this to initialize persistent install prefixes or create a venv.
-
-Example `bootstrap.sh`:
+## Local testing
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
+docker build -t jarvis .
 
-# Example: create a persistent python venv
-python3 -m venv /data/venv || true
+docker run --rm -p 3000:3000 \
+  -e PORT=3000 \
+  -e SETUP_PASSWORD=test \
+  -e OPENROUTER_API_KEY=sk-or-your-key-here \
+  -v $(pwd)/.tmpdata:/data \
+  jarvis
 
-# Example: ensure npm/pnpm dirs exist
-mkdir -p /data/npm /data/npm-cache /data/pnpm /data/pnpm-store
+# Open http://localhost:3000/setup (password: test)
 ```
+
+## Persistence
+
+Railway volumes at `/data` persist across redeploys:
+
+**What persists:**
+- Workspace files (SOUL.md, IDENTITY.md, etc.)
+- Agent memory and sessions
+- OpenClaw configuration
+- Global npm/pnpm installs (configured to use `/data`)
+
+**What doesn't persist:**
+- System packages from `apt-get` (use `/data` instead)
+- Temporary files in `/tmp`
 
 ## Troubleshooting
 
-### “disconnected (1008): pairing required” / dashboard health offline
+### Device pairing shows "pairing required"
 
-This is not a crash — it means the gateway is running, but no device has been approved yet.
+This is normal on first run. The Control UI needs approval to connect:
 
-Fix:
-- Open `/setup`
-- Use the **Debug Console**:
-  - `openclaw devices list`
-  - `openclaw devices approve <requestId>`
+1. Open `/setup`
+2. Go to **Device Pairing** section
+3. Click **Open Control UI (triggers pairing)**
+4. A new window opens — wait a moment
+5. Pairing request appears in the list
+6. Click **Approve**
+7. Refresh the Control UI
 
-If `openclaw devices list` shows no pending request IDs:
-- Make sure you’re visiting the Control UI at `/openclaw` (or your native app) and letting it attempt to connect
-  - Note: the Railway wrapper now proxies the gateway and injects the auth token automatically, so you should not need to paste the gateway token into the Control UI when using `/openclaw`.
-- Ensure your state dir is the Railway volume (recommended): `OPENCLAW_STATE_DIR=/data/.openclaw`
-- Check `/setup/api/debug` for the active state/workspace dirs + gateway readiness
+(The Setup Wizard streamlines this into one step so users don't see the error.)
 
-### “unauthorized: gateway token mismatch”
+### Gateway connection errors / 502
 
-The Control UI connects using `gateway.remote.token` and the gateway validates `gateway.auth.token`.
+Usually means the wrapper is up but the gateway failed to start.
 
-Fix:
-- Re-run `/setup` so the wrapper writes both tokens.
-- Or set both values to the same token in config.
+Check:
+- `/setup/api/debug` for gateway status
+- Railway logs for wrapper errors
+- Ensure volume is mounted at `/data`
+- Ensure `OPENROUTER_API_KEY` is set
 
-### “Application failed to respond” / 502 Bad Gateway
+### "Reached heap limit" during build
 
-Most often this means the wrapper is up, but the gateway can’t start or can’t bind.
+Building OpenClaw from source needs 2GB+ memory.
 
-Checklist:
-- Ensure you mounted a **Volume** at `/data` and set:
-  - `OPENCLAW_STATE_DIR=/data/.openclaw`
-  - `OPENCLAW_WORKSPACE_DIR=/data/workspace`
-- Ensure **Public Networking** is enabled (Railway will inject `PORT`).
-- Check Railway logs for the wrapper error: it will show `Gateway not ready:` with the reason.
+On Railway: upgrade to a plan with more memory and redeploy.
 
-### Legacy CLAWDBOT_* env vars / multiple state directories
+## Files
 
-If you see warnings about deprecated `CLAWDBOT_*` variables or state dir split-brain (e.g. `~/.openclaw` vs `/data/...`):
-- Use `OPENCLAW_*` variables only
-- Ensure `OPENCLAW_STATE_DIR=/data/.openclaw` and `OPENCLAW_WORKSPACE_DIR=/data/workspace`
-- Redeploy after fixing Railway Variables
+- `Dockerfile` — Multi-stage build (compiles OpenClaw + runtime image)
+- `src/server.js` — Express wrapper + reverse proxy
+- `src/setup-app.js` — Browser setup wizard UI
+- `entrypoint.sh` — Container entrypoint (runs onboarding, starts wrapper)
+- `railway.toml` — Railway deployment config
+- `TODO.md` — Future improvements (security, features)
 
-### Build OOM (out of memory) on Railway
+## Roadmap
 
-Building OpenClaw from source can exceed small memory tiers.
+See `TODO.md` for planned improvements:
+- Stronger auth (passkeys, OAuth)
+- Pre-configurable agent personality
+- Custom UI themes
+- Multi-user support
 
-Recommendations:
-- Use a plan with **2GB+ memory**.
-- If you see `Reached heap limit Allocation failed - JavaScript heap out of memory`, upgrade memory and redeploy.
+## License
 
-## Local smoke test
+MIT (inherits from OpenClaw)
 
-```bash
-docker build -t clawdbot-railway-template .
+## Credits
 
-docker run --rm -p 8080:8080 \
-  -e PORT=8080 \
-  -e SETUP_PASSWORD=test \
-  -e OPENCLAW_STATE_DIR=/data/.openclaw \
-  -e OPENCLAW_WORKSPACE_DIR=/data/workspace \
-  -v $(pwd)/.tmpdata:/data \
-  clawdbot-railway-template
-
-# open http://localhost:8080/setup (password: test)
-```
-
----
-
-## Official template / endorsements
-
-- Officially recommended by OpenClaw: <https://docs.openclaw.ai/railway>
-- Railway announcement (official): [Railway tweet announcing 1‑click OpenClaw deploy](https://x.com/railway/status/2015534958925013438)
-
-  ![Railway official tweet screenshot](assets/railway-official-tweet.jpg)
-
-- Endorsement from Railway CEO: [Jake Cooper tweet endorsing the OpenClaw Railway template](https://x.com/justjake/status/2015536083514405182)
-
-  ![Jake Cooper endorsement tweet screenshot](assets/railway-ceo-endorsement.jpg)
-
-- Created and maintained by **Vignesh N (@vignesh07)**
-- **11000+ deploys on Railway and counting** [Link to template on Railway](https://railway.com/deploy/clawdbot-railway-template)
-
-![Railway template deploy count](assets/railway-deploys.jpg)
+- Built on [OpenClaw](https://openclaw.ai) by the OpenClaw team
+- Inspired by [clawdbot-railway-template](https://github.com/vignesh07/clawdbot-railway-template)
+- Customized for Jarvis with OpenRouter preconfiguration
