@@ -382,6 +382,209 @@
   height: 14px;
 }
 
+/* ── Simple job card ── */
+
+.simple-job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.simple-job {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.simple-job__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.simple-job__top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.simple-job__name {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+
+.simple-job__prompt {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.simple-job__schedule {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg-elevated) 80%, var(--border) 20%);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px 8px;
+}
+
+.simple-job__schedule svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+/* ── Toggle switch ── */
+
+.job-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.job-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.job-toggle__track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  transition: background var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.job-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.job-toggle input:checked + .job-toggle__track {
+  background: var(--accent);
+}
+
+.job-toggle input:checked + .job-toggle__track .job-toggle__thumb {
+  transform: translateX(16px);
+}
+
+.job-toggle__label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ── Trash button ── */
+
+.job-trash-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--border) 40%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.job-trash-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.job-trash-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #ef4444) 15%, transparent);
+  color: var(--danger, #ef4444);
+}
+
+/* ── Delete confirmation modal ── */
+
+.cron-delete-modal {
+  padding: 32px 28px 24px;
+  text-align: center;
+  max-width: 360px;
+}
+
+.cron-delete-modal__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
+  color: var(--danger, #ef4444);
+  margin: 0 auto 16px;
+}
+
+.cron-delete-modal__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cron-delete-modal__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-bottom: 8px;
+}
+
+.cron-delete-modal__body {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.cron-delete-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn--danger {
+  background: var(--danger, #ef4444);
+  color: white;
+  border-color: var(--danger, #ef4444);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #ef4444) 85%, black);
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 480px) {

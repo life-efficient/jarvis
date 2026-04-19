@@ -1445,12 +1445,7 @@ export function renderApp(state: AppViewState) {
                           state.cronQuickCreateDraft = createDefaultDraft();
                           requestHostUpdate?.();
                         }}
-                      >New</button>
-                      <button
-                        class="btn"
-                        ?disabled=${state.cronLoading}
-                        @click=${() => state.loadCron()}
-                      >${state.cronLoading ? "Refreshing…" : "Refresh"}</button>
+                      >${icons.plus} New</button>
                     `
                   : nothing}
               </div>
