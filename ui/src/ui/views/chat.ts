@@ -1647,6 +1647,10 @@ function buildChatItems(props: ChatProps): Array<ChatItem | MessageGroup> {
       continue;
     }
 
+    if (normalized.role === "system") {
+      continue;
+    }
+
     // Apply search filter if active
     if (vs.searchOpen && vs.searchQuery.trim() && !messageMatchesSearchQuery(msg, vs.searchQuery)) {
       continue;

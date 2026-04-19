@@ -1123,7 +1123,8 @@ function renderGroupedMessage(
   const extractedText = normalizedMessage.content
     .reduce<string[]>((lines, item) => {
       if (item.type === "text" && typeof item.text === "string") {
-        lines.push(item.text);
+        // Strip gateway-injected timestamp prefix: "[Day YYYY-MM-DD HH:MM TZ] "
+        lines.push(item.text.replace(/^\[[^\]]{10,40}\]\s*/, ""));
       }
       return lines;
     }, [])
