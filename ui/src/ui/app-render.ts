@@ -1181,6 +1181,7 @@ export function renderApp(state: AppViewState) {
   };
 
   return html`
+    ${renderCronQuickCreateForTab(state, requestHostUpdate)}
     ${renderCommandPalette({
       open: state.paletteOpen,
       query: state.paletteQuery,
@@ -1434,6 +1435,24 @@ export function renderApp(state: AppViewState) {
                   ? html`<div class="pill danger">${state.lastError}</div>`
                   : nothing}
                 ${isChat ? renderChatControls(state) : nothing}
+                ${state.tab === "cron"
+                  ? html`
+                      <button
+                        class="btn btn--primary"
+                        @click=${() => {
+                          state.cronQuickCreateOpen = true;
+                          state.cronQuickCreateStep = "what";
+                          state.cronQuickCreateDraft = createDefaultDraft();
+                          requestHostUpdate?.();
+                        }}
+                      >New</button>
+                      <button
+                        class="btn"
+                        ?disabled=${state.cronLoading}
+                        @click=${() => state.loadCron()}
+                      >${state.cronLoading ? "Refreshing…" : "Refresh"}</button>
+                    `
+                  : nothing}
               </div>
             </section>`}
         ${state.tab === "overview"
@@ -1645,10 +1664,9 @@ export function renderApp(state: AppViewState) {
             )
           : nothing}
         ${renderUsageTab(state)}
-        ${state.tab === "cron" ? renderCronQuickCreateForTab(state, requestHostUpdate) : nothing}
         ${state.tab === "cron"
           ? lazyRender(lazyCron, (m) =>
-              m.renderCron({
+              m.renderCronSimple({
                 basePath: state.basePath,
                 loading: state.cronLoading,
                 status: state.cronStatus,

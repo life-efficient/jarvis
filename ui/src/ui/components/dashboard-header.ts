@@ -1,4 +1,4 @@
-import { LitElement, html } from "lit";
+import { LitElement, html, nothing } from "lit";
 import { property } from "lit/decorators.js";
 import { titleForTab, type Tab } from "../navigation.js";
 
@@ -8,6 +8,7 @@ export class DashboardHeader extends LitElement {
   }
 
   @property() tab: Tab = "overview";
+  @property({ attribute: false }) actions: unknown = nothing;
 
   override render() {
     const label = titleForTab(this.tab);
@@ -28,7 +29,7 @@ export class DashboardHeader extends LitElement {
           <span class="dashboard-header__breadcrumb-current">${label}</span>
         </div>
         <div class="dashboard-header__actions">
-          <slot></slot>
+          ${this.actions}
         </div>
       </div>
     `;

@@ -302,18 +302,22 @@ export function renderCronQuickCreate(props: CronQuickCreateProps) {
   }
 
   return html`
-    <div class="cqc-container">
-      <div class="cqc-header">
-        <h2 class="cqc-header__title">${icons.zap} New Automation</h2>
-        <button class="cqc-header__close" @click=${props.onCancel}>${icons.x}</button>
-      </div>
+    <div class="cqc-overlay" @click=${(e: Event) => { if (e.target === e.currentTarget) props.onCancel(); }}>
+      <div class="cqc-modal">
+        <div class="cqc-container">
+          <div class="cqc-header">
+            <h2 class="cqc-header__title">${icons.zap} New reminder</h2>
+            <button class="cqc-header__close" @click=${props.onCancel}>${icons.x}</button>
+          </div>
 
-      ${renderStepIndicator(props.step)}
-      ${props.step === "what"
-        ? renderWhatStep(props)
-        : props.step === "when"
-          ? renderWhenStep(props)
-          : renderHowStep(props)}
+          ${renderStepIndicator(props.step)}
+          ${props.step === "what"
+            ? renderWhatStep(props)
+            : props.step === "when"
+              ? renderWhenStep(props)
+              : renderHowStep(props)}
+        </div>
+      </div>
     </div>
   `;
 }

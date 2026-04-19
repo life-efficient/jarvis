@@ -1470,6 +1470,75 @@ function renderFieldError(message?: string, id?: string) {
   return html`<div id=${ifDefined(id)} class="cron-help cron-error">${t(message)}</div>`;
 }
 
+export function renderCronSimple(props: CronProps) {
+  return html`
+    ${props.error ? html`<div class="muted" style="margin-bottom: 8px">${props.error}</div>` : nothing}
+    <section class="card">
+      ${props.jobs.length === 0
+        ? html`<div class="muted" style="padding: 12px 0">No reminders yet. Hit + New reminder to add one.</div>`
+        : html`<div class="list">${props.jobs.map((job) => renderSimpleJob(job, props))}</div>`}
+      ${props.jobsHasMore
+        ? html`
+            <div class="row" style="margin-top: 12px">
+              <button
+                class="btn"
+                ?disabled=${props.loading || props.jobsLoadingMore}
+                @click=${props.onLoadMoreJobs}
+              >
+                ${props.jobsLoadingMore ? t("cron.jobs.loading") : t("cron.jobs.loadMore")}
+              </button>
+            </div>
+          `
+        : nothing}
+    </section>
+  `;
+}
+
+function renderSimpleJob(job: CronJob, props: CronProps) {
+  const nextRunAtMs = job.state?.nextRunAtMs;
+  const lastRunAtMs = job.state?.lastRunAtMs;
+  const lastStatus = job.state?.lastStatus;
+  const lastRunText = lastRunAtMs
+    ? `Last ran ${formatRelativeTimestamp(lastRunAtMs)}${lastStatus === "ok" ? " · OK" : lastStatus === "error" ? " · Failed" : ""}`
+    : null;
+
+  return html`
+    <div class="list-item">
+      <div class="list-main">
+        <div class="list-title">${job.name}</div>
+        <div class="list-sub">${formatCronSchedule(job)}</div>
+        ${nextRunAtMs
+          ? html`<div class="muted" style="margin-top: 4px">Next: ${formatRelativeTimestamp(nextRunAtMs)}</div>`
+          : nothing}
+        ${lastRunText ? html`<div class="muted">${lastRunText}</div>` : nothing}
+      </div>
+      <div class="list-meta" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+          <input
+            type="checkbox"
+            .checked=${job.enabled}
+            @change=${(e: Event) => {
+              e.stopPropagation();
+              props.onToggle(job, (e.target as HTMLInputElement).checked);
+            }}
+          />
+          <span>${job.enabled ? "Enabled" : "Disabled"}</span>
+        </label>
+        <button
+          class="btn danger"
+          ?disabled=${props.busy}
+          @click=${(e: Event) => {
+            e.stopPropagation();
+            props.onRemove(job);
+          }}
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function renderJob(job: CronJob, props: CronProps) {
   const isSelected = props.runsJobId === job.id;
   const itemClass = `list-item list-item-clickable cron-job${isSelected ? " list-item-selected" : ""}`;
