@@ -39,6 +39,20 @@ ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:install && pnpm ui:build
 
 
+# Build custom UI (Lit + TypeScript + Vite)
+FROM node:22-bookworm AS ui-build
+
+WORKDIR /ui
+
+COPY ui/package.json ui/package-lock.json ./
+
+RUN npm install
+
+COPY ui ./
+
+RUN npm run build
+
+
 # Runtime image
 FROM node:22-bookworm
 ENV NODE_ENV=production
@@ -71,6 +85,9 @@ RUN npm install --omit=dev && npm cache clean --force
 
 # Copy built openclaw
 COPY --from=openclaw-build /openclaw /openclaw
+
+# Copy built custom UI
+COPY --from=ui-build /ui/dist ./ui/dist
 
 # Provide an openclaw executable
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \

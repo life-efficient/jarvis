@@ -3,10 +3,14 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UI_DIST = path.resolve(__dirname, "../ui/dist");
 
 // Migrate deprecated CLAWDBOT_* env vars → OPENCLAW_* so existing Railway deployments
 // keep working. Users should update their Railway Variables to use the new names.
@@ -298,6 +302,12 @@ function requireSetupAuth(req, res, next) {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
+
+// Serve custom Lit UI from dist (if built).
+const uiDistExists = fs.existsSync(UI_DIST);
+if (uiDistExists) {
+  app.use("/", express.static(UI_DIST));
+}
 
 // Minimal health endpoint for Railway.
 app.get("/setup/healthz", (_req, res) => res.json({ ok: true }));
@@ -1383,6 +1393,22 @@ proxy.on("proxyReqWs", (_proxyReq, req) => {
   }
 });
 
+// --- Custom UI (Lit + TypeScript) ---
+app.get("/", async (req, res) => {
+  if (uiDistExists) {
+    // Custom UI is built; serve SPA
+    return res.sendFile(path.join(UI_DIST, "index.html"));
+  }
+
+  // Fallback: if UI dist not available, proxy to gateway
+  if (!isConfigured()) {
+    return res.redirect("/setup");
+  }
+
+  attachGatewayAuthHeader(req);
+  proxy.web(req, res, { target: GATEWAY_TARGET });
+});
+
 app.use(requireDashboardAuth, async (req, res) => {
   // If not configured, force users to /setup for any non-setup routes.
   if (!isConfigured() && !req.path.startsWith("/setup")) {
@@ -1492,6 +1518,15 @@ server.on("upgrade", async (req, socket, head) => {
     socket.destroy();
     return;
   }
+
+  // Route custom UI WebSocket to gateway
+  if (req.url === "/gateway-ws") {
+    attachGatewayAuthHeader(req);
+    proxy.ws(req, socket, head, { target: GATEWAY_TARGET });
+    return;
+  }
+
+  // Default: route all other WebSocket upgrades (e.g., /openclaw) to gateway
   attachGatewayAuthHeader(req);
   proxy.ws(req, socket, head, { target: GATEWAY_TARGET });
 });
