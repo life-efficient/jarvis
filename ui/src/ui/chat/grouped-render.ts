@@ -187,7 +187,6 @@ function extractImages(message: unknown): ImageBlock[] {
 export function renderReadingIndicatorGroup(assistant?: AssistantIdentity, basePath?: string) {
   return html`
     <div class="chat-group assistant">
-      ${renderAvatar("assistant", assistant, basePath)}
       <div class="chat-group-messages">
         <div class="chat-bubble chat-reading-indicator" aria-hidden="true">
           <span class="chat-reading-indicator__dots">
@@ -214,7 +213,6 @@ export function renderStreamingGroup(
 
   return html`
     <div class="chat-group assistant">
-      ${renderAvatar("assistant", assistant, basePath)}
       <div class="chat-group-messages">
         ${renderGroupedMessage(
           {
@@ -288,14 +286,6 @@ export function renderMessageGroup(
 
   return html`
     <div class="chat-group ${roleClass}">
-      ${renderAvatar(
-        group.role,
-        {
-          name: assistantName,
-          avatar: opts.assistantAvatar ?? null,
-        },
-        opts.basePath,
-      )}
       <div class="chat-group-messages">
         ${group.messages.map((item, index) =>
           renderGroupedMessage(
@@ -324,10 +314,6 @@ export function renderMessageGroup(
           <span class="chat-sender-name">${who}</span>
           <span class="chat-group-timestamp">${timestamp}</span>
           ${renderMessageMeta(meta)}
-          ${normalizedRole === "assistant" && isTtsSupported() ? renderTtsButton(group) : nothing}
-          ${opts.onDelete
-            ? renderDeleteButton(opts.onDelete, normalizedRole === "user" ? "left" : "right")
-            : nothing}
         </div>
       </div>
     </div>
@@ -398,58 +384,8 @@ function fmtTokens(n: number): string {
   return String(n);
 }
 
-function renderMessageMeta(meta: GroupMeta | null) {
-  if (!meta) {
-    return nothing;
-  }
-
-  const parts: Array<ReturnType<typeof html>> = [];
-
-  // Token counts: ↑input ↓output
-  if (meta.input) {
-    parts.push(html`<span class="msg-meta__tokens">↑${fmtTokens(meta.input)}</span>`);
-  }
-  if (meta.output) {
-    parts.push(html`<span class="msg-meta__tokens">↓${fmtTokens(meta.output)}</span>`);
-  }
-
-  // Cache: R/W
-  if (meta.cacheRead) {
-    parts.push(html`<span class="msg-meta__cache">R${fmtTokens(meta.cacheRead)}</span>`);
-  }
-  if (meta.cacheWrite) {
-    parts.push(html`<span class="msg-meta__cache">W${fmtTokens(meta.cacheWrite)}</span>`);
-  }
-
-  // Cost
-  if (meta.cost > 0) {
-    parts.push(html`<span class="msg-meta__cost">$${meta.cost.toFixed(4)}</span>`);
-  }
-
-  // Context %
-  if (meta.contextPercent !== null) {
-    const pct = meta.contextPercent;
-    const cls =
-      pct >= 90
-        ? "msg-meta__ctx msg-meta__ctx--danger"
-        : pct >= 75
-          ? "msg-meta__ctx msg-meta__ctx--warn"
-          : "msg-meta__ctx";
-    parts.push(html`<span class="${cls}">${pct}% ctx</span>`);
-  }
-
-  // Model
-  if (meta.model) {
-    // Shorten model name: strip provider prefix if present (e.g. "anthropic/claude-3.5-sonnet" → "claude-3.5-sonnet")
-    const shortModel = meta.model.includes("/") ? meta.model.split("/").pop()! : meta.model;
-    parts.push(html`<span class="msg-meta__model">${shortModel}</span>`);
-  }
-
-  if (parts.length === 0) {
-    return nothing;
-  }
-
-  return html`<span class="msg-meta">${parts}</span>`;
+function renderMessageMeta(_meta: GroupMeta | null) {
+  return nothing;
 }
 
 function extractGroupText(group: MessageGroup): string {
