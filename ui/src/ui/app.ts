@@ -396,6 +396,7 @@ export class OpenClawApp extends LitElement {
   // Non-reactive (don’t trigger renders just for timer bookkeeping).
   usageQueryDebounceTimer: number | null = null;
 
+  @state() chatSettingsOpen = false;
   @state() cronLoading = false;
   @state() cronQuickCreateOpen = false;
   @state() cronQuickCreateStep: import("./views/cron-quick-create.ts").CronQuickCreateStep = "what";

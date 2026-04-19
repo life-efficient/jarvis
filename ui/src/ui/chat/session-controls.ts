@@ -24,8 +24,6 @@ export function renderChatSessionSelect(
   onSwitchSession: ChatSessionSwitchHandler = () => undefined,
 ) {
   const sessionGroups = resolveSessionOptionGroups(state, state.sessionKey, state.sessionsResult);
-  const modelSelect = renderChatModelSelect(state);
-  const thinkingSelect = renderChatThinkingSelect(state);
   const selectedSessionLabel =
     sessionGroups.flatMap((group) => group.options).find((entry) => entry.key === state.sessionKey)
       ?.label ?? state.sessionKey;
@@ -65,7 +63,6 @@ export function renderChatSessionSelect(
           )}
         </select>
       </label>
-      ${modelSelect} ${thinkingSelect}
     </div>
   `;
 }
@@ -79,7 +76,7 @@ async function refreshSessionOptions(state: AppViewState) {
   });
 }
 
-function renderChatModelSelect(state: AppViewState) {
+export function renderChatModelSelect(state: AppViewState) {
   const { currentOverride, defaultLabel, options } = resolveChatModelSelectState(state);
   const busy =
     state.chatLoading || state.chatSending || Boolean(state.chatRunId) || state.chatStream !== null;
@@ -176,7 +173,7 @@ function buildThinkingOptions(
   return options;
 }
 
-function resolveChatThinkingSelectState(state: AppViewState): ChatThinkingSelectState {
+export function resolveChatThinkingSelectState(state: AppViewState): ChatThinkingSelectState {
   const activeRow = state.sessionsResult?.sessions?.find((row) => row.key === state.sessionKey);
   const persisted = activeRow?.thinkingLevel;
   const currentOverride =
@@ -234,7 +231,7 @@ export function renderChatThinkingSelect(state: AppViewState) {
   `;
 }
 
-async function switchChatModel(state: AppViewState, nextModel: string) {
+export async function switchChatModel(state: AppViewState, nextModel: string) {
   if (!state.client || !state.connected) {
     return;
   }
@@ -281,7 +278,7 @@ function patchSessionThinkingLevel(
   };
 }
 
-async function switchChatThinkingLevel(state: AppViewState, nextThinkingLevel: string) {
+export async function switchChatThinkingLevel(state: AppViewState, nextThinkingLevel: string) {
   if (!state.client || !state.connected) {
     return;
   }

@@ -8,9 +8,13 @@ import {
   parseSessionKey,
   renderChatSessionSelect as renderChatSessionSelectBase,
   renderChatThinkingSelect,
+  resolveChatThinkingSelectState,
   resolveSessionDisplayName,
   resolveSessionOptionGroups,
+  switchChatModel,
+  switchChatThinkingLevel,
 } from "./chat/session-controls.ts";
+import { resolveChatModelSelectState } from "./chat-model-select-state.ts";
 import { refreshSlashCommands } from "./chat/slash-commands.ts";
 import { ChatState, loadChatHistory } from "./controllers/chat.ts";
 import { loadSessions } from "./controllers/sessions.ts";
@@ -26,6 +30,10 @@ export { isCronSessionKey, parseSessionKey, resolveSessionDisplayName, resolveSe
 type SessionDefaultsSnapshot = {
   mainSessionKey?: string;
   mainKey?: string;
+};
+
+type ChatSettingsHost = AppViewState & {
+  chatSettingsOpen: boolean;
 };
 
 type SessionSwitchHost = AppViewState & {
@@ -176,31 +184,7 @@ export function renderChatSessionSelect(state: AppViewState) {
 }
 
 export function renderChatControls(state: AppViewState) {
-  const hideCron = state.sessionsHideCron ?? true;
-  const hiddenCronCount = hideCron
-    ? countHiddenCronSessions(state.sessionKey, state.sessionsResult)
-    : 0;
-  const disableThinkingToggle = state.onboarding;
-  const disableFocusToggle = state.onboarding;
-  const showThinking = state.onboarding ? false : state.settings.chatShowThinking;
-  const showToolCalls = state.onboarding ? true : state.settings.chatShowToolCalls;
-  const focusActive = state.onboarding ? true : state.settings.chatFocusMode;
-  const toolCallsIcon = html`
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path
-        d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-      ></path>
-    </svg>
-  `;
+  const host = state as unknown as ChatSettingsHost;
   const refreshIcon = html`
     <svg
       width="18"
@@ -216,7 +200,7 @@ export function renderChatControls(state: AppViewState) {
       <path d="M21 3v5h-5"></path>
     </svg>
   `;
-  const focusIcon = html`
+  const gearIcon = html`
     <svg
       width="18"
       height="18"
@@ -227,11 +211,10 @@ export function renderChatControls(state: AppViewState) {
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      <path d="M4 7V4h3"></path>
-      <path d="M20 7V4h-3"></path>
-      <path d="M4 17v3h3"></path>
-      <path d="M20 17v3h-3"></path>
       <circle cx="12" cy="12" r="3"></circle>
+      <path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+      ></path>
     </svg>
   `;
   return html`
@@ -261,72 +244,190 @@ export function renderChatControls(state: AppViewState) {
       >
         ${refreshIcon}
       </button>
-      <span class="chat-controls__separator">|</span>
       <button
-        class="btn btn--sm btn--icon ${showThinking ? "active" : ""}"
-        ?disabled=${disableThinkingToggle}
+        class="btn btn--sm btn--icon"
         @click=${() => {
-          if (disableThinkingToggle) {
-            return;
+          host.chatSettingsOpen = true;
+        }}
+        title="Chat settings"
+        aria-label="Chat settings"
+      >
+        ${gearIcon}
+      </button>
+    </div>
+  `;
+}
+
+let _chatSettingsOpenDropdown: string | null = null;
+
+function renderCustomDropdown(
+  id: string,
+  options: { value: string; label: string }[],
+  selectedValue: string,
+  onSelect: (value: string) => void,
+  requestUpdate: (() => void) | undefined,
+  disabled = false,
+) {
+  const isOpen = _chatSettingsOpenDropdown === id;
+  const selectedLabel = options.find((o) => o.value === selectedValue)?.label ?? selectedValue;
+  const chevron = html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+  return html`
+    <div class="cs-dropdown ${isOpen ? "cs-dropdown--open" : ""} ${disabled ? "cs-dropdown--disabled" : ""}">
+      <button
+        class="cs-dropdown__trigger"
+        ?disabled=${disabled}
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          _chatSettingsOpenDropdown = isOpen ? null : id;
+          requestUpdate?.();
+          if (!isOpen) {
+            const close = () => {
+              _chatSettingsOpenDropdown = null;
+              requestUpdate?.();
+              document.removeEventListener("click", close);
+            };
+            setTimeout(() => document.addEventListener("click", close, { once: true }), 0);
           }
-          state.applySettings({
-            ...state.settings,
-            chatShowThinking: !state.settings.chatShowThinking,
-          });
         }}
-        aria-pressed=${showThinking}
-        title=${disableThinkingToggle ? t("chat.onboardingDisabled") : t("chat.thinkingToggle")}
       >
-        ${icons.brain}
+        <span class="cs-dropdown__value">${selectedLabel}</span>
+        ${chevron}
       </button>
-      <button
-        class="btn btn--sm btn--icon ${showToolCalls ? "active" : ""}"
-        ?disabled=${disableThinkingToggle}
-        @click=${() => {
-          if (disableThinkingToggle) {
-            return;
-          }
-          state.applySettings({
-            ...state.settings,
-            chatShowToolCalls: !state.settings.chatShowToolCalls,
-          });
-        }}
-        aria-pressed=${showToolCalls}
-        title=${disableThinkingToggle ? t("chat.onboardingDisabled") : t("chat.toolCallsToggle")}
-      >
-        ${toolCallsIcon}
-      </button>
-      <button
-        class="btn btn--sm btn--icon ${focusActive ? "active" : ""}"
-        ?disabled=${disableFocusToggle}
-        @click=${() => {
-          if (disableFocusToggle) {
-            return;
-          }
-          state.applySettings({
-            ...state.settings,
-            chatFocusMode: !state.settings.chatFocusMode,
-          });
-        }}
-        aria-pressed=${focusActive}
-        title=${disableFocusToggle ? t("chat.onboardingDisabled") : t("chat.focusToggle")}
-      >
-        ${focusIcon}
-      </button>
-      <button
-        class="btn btn--sm btn--icon ${hideCron ? "active" : ""}"
-        @click=${() => {
-          state.sessionsHideCron = !hideCron;
-        }}
-        aria-pressed=${hideCron}
-        title=${hideCron
-          ? hiddenCronCount > 0
-            ? t("chat.showCronSessionsHidden", { count: String(hiddenCronCount) })
-            : t("chat.showCronSessions")
-          : t("chat.hideCronSessions")}
-      >
-        ${renderCronFilterIcon(hiddenCronCount)}
-      </button>
+      ${isOpen
+        ? html`
+            <div class="cs-dropdown__menu" @click=${(e: Event) => e.stopPropagation()}>
+              ${options.map(
+                (opt) => html`
+                  <button
+                    class="cs-dropdown__item ${opt.value === selectedValue ? "cs-dropdown__item--active" : ""}"
+                    @click=${() => {
+                      onSelect(opt.value);
+                      _chatSettingsOpenDropdown = null;
+                      requestUpdate?.();
+                    }}
+                  >
+                    ${opt.value === selectedValue
+                      ? html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+                      : html`<span style="width:14px;display:inline-block"></span>`}
+                    ${opt.label}
+                  </button>
+                `,
+              )}
+            </div>
+          `
+        : nothing}
+    </div>
+  `;
+}
+
+export function renderChatSettingsModal(state: AppViewState, requestUpdate?: () => void) {
+  const host = state as unknown as ChatSettingsHost;
+  if (!host.chatSettingsOpen) {
+    return nothing;
+  }
+  const showThinking = state.onboarding ? false : state.settings.chatShowThinking;
+  const showToolCalls = state.onboarding ? true : state.settings.chatShowToolCalls;
+  const hideCron = state.sessionsHideCron ?? true;
+
+  const busy =
+    state.chatLoading || state.chatSending || Boolean(state.chatRunId) || state.chatStream !== null;
+  const modelState = resolveChatModelSelectState(state);
+  const thinkingState = resolveChatThinkingSelectState(state);
+  const modelOptions = [
+    { value: "", label: modelState.defaultLabel },
+    ...modelState.options,
+  ];
+  const thinkingOptions = [
+    { value: "", label: thinkingState.defaultLabel },
+    ...thinkingState.options,
+  ];
+
+  const toggle = (checked: boolean, onChange: () => void, label: string) => html`
+    <label class="chat-settings-modal__row">
+      <span class="chat-settings-modal__label">${label}</span>
+      <label class="job-toggle job-toggle--lg">
+        <input type="checkbox" .checked=${checked} @change=${onChange} />
+        <span class="job-toggle__track"><span class="job-toggle__thumb"></span></span>
+      </label>
+    </label>
+  `;
+
+  return html`
+    <div
+      class="cqc-overlay"
+      @click=${(e: Event) => {
+        if (e.target === e.currentTarget) {
+          host.chatSettingsOpen = false;
+          _chatSettingsOpenDropdown = null;
+        }
+      }}
+    >
+      <div class="cqc-modal chat-settings-modal">
+        <div class="chat-settings-modal__header">
+          <h2 class="chat-settings-modal__title">Chat settings</h2>
+          <button
+            class="btn btn--icon btn--subtle"
+            @click=${() => {
+              host.chatSettingsOpen = false;
+              _chatSettingsOpenDropdown = null;
+            }}
+          >
+            ${icons.x}
+          </button>
+        </div>
+        <div class="chat-settings-modal__body">
+          <div class="chat-settings-modal__section">
+            <div class="chat-settings-modal__section-label">Model</div>
+            ${renderCustomDropdown(
+              "model",
+              modelOptions,
+              modelState.currentOverride,
+              (v) => void switchChatModel(state, v),
+              requestUpdate,
+              !state.connected || busy,
+            )}
+          </div>
+          <div class="chat-settings-modal__section">
+            <div class="chat-settings-modal__section-label">Thinking level</div>
+            ${renderCustomDropdown(
+              "thinking",
+              thinkingOptions,
+              thinkingState.currentOverride,
+              (v) => void switchChatThinkingLevel(state, v),
+              requestUpdate,
+              !state.connected || busy,
+            )}
+          </div>
+          <div class="chat-settings-modal__section">
+            ${toggle(
+              showThinking,
+              () =>
+                state.applySettings({
+                  ...state.settings,
+                  chatShowThinking: !state.settings.chatShowThinking,
+                }),
+              "Show thinking",
+            )}
+            ${toggle(
+              showToolCalls,
+              () =>
+                state.applySettings({
+                  ...state.settings,
+                  chatShowToolCalls: !state.settings.chatShowToolCalls,
+                }),
+              "Show tool calls",
+            )}
+            ${toggle(
+              !hideCron,
+              () => {
+                state.sessionsHideCron = !state.sessionsHideCron;
+              },
+              "Show cron sessions",
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }

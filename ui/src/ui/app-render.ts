@@ -13,6 +13,7 @@ import { renderUsageTab } from "./app-render-usage-tab.ts";
 import {
   renderChatControls,
   renderChatMobileToggle,
+  renderChatSettingsModal,
   renderChatSessionSelect,
   renderTab,
   resolveAssistantAttachmentAuthToken,
@@ -1182,6 +1183,7 @@ export function renderApp(state: AppViewState) {
 
   return html`
     ${renderCronQuickCreateForTab(state, requestHostUpdate)}
+    ${renderChatSettingsModal(state, requestHostUpdate)}
     ${renderCommandPalette({
       open: state.paletteOpen,
       query: state.paletteQuery,
