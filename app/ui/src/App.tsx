@@ -1,24 +1,25 @@
 import { useState } from "react"
-import { Menu } from "lucide-react"
+import { Menu, Activity, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGatewayWS, type ConnectionStatus } from "@/hooks/useGatewayWS"
 import { ChatView } from "@/components/ChatView"
 import { EventsView } from "@/components/EventsView"
 import { MenuOverlay } from "@/components/MenuOverlay"
 
-export type View = "chat" | "events" | "channels" | "skills" | "schedule"
+export type View = "chat" | "channels" | "skills" | "schedule"
 
-const statusDot: Record<ConnectionStatus, string> = {
-  connecting:   "bg-yellow-400/60",
-  connected:    "bg-emerald-400",
-  disconnected: "bg-muted-foreground",
-  error:        "bg-destructive",
+const activityColor: Record<ConnectionStatus, string> = {
+  connecting:   "text-yellow-400/60",
+  connected:    "text-emerald-400",
+  disconnected: "text-muted-foreground",
+  error:        "text-destructive",
 }
 
 export default function App() {
-  const { events, status } = useGatewayWS()
+  const { events, status, sendRPC } = useGatewayWS()
   const [view, setView] = useState<View>("chat")
   const [menuOpen, setMenuOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false)
 
   return (
     <div className="flex flex-col h-dvh">
@@ -35,17 +36,49 @@ export default function App() {
           jarvis
         </span>
 
-        <div className="w-9 h-9 flex items-center justify-center">
-          <span className={cn("w-2 h-2 rounded-full", statusDot[status])} />
-        </div>
+        <button
+          onClick={() => setLogsOpen(v => !v)}
+          className={cn(
+            "w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.1] flex items-center justify-center transition-colors",
+            logsOpen
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : cn("hover:text-foreground", activityColor[status])
+          )}
+          aria-label="Toggle event stream"
+        >
+          <Activity size={16} />
+        </button>
       </header>
 
-      <div className="flex-1 min-h-0">
-        {view === "chat"     && <ChatView />}
-        {view === "events"   && <EventsView events={events} />}
-        {view === "channels" && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
-        {view === "skills"   && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
-        {view === "schedule" && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
+      <div className="flex-1 min-h-0 flex">
+        {/* Main view */}
+        <div className="flex-1 min-w-0">
+          {view === "chat"     && <ChatView events={events} sendRPC={sendRPC} />}
+          {view === "channels" && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
+          {view === "skills"   && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
+          {view === "schedule" && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
+        </div>
+
+        {/* Log panel — expands inline to the right */}
+        <div className={cn(
+          "shrink-0 flex flex-col overflow-hidden border-l border-white/[0.08]",
+          "transition-[width] duration-300 ease-in-out",
+          logsOpen ? "w-80" : "w-0"
+        )}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] shrink-0 w-80">
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Event Stream</span>
+            <button
+              onClick={() => setLogsOpen(false)}
+              className="w-7 h-7 rounded-lg bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close event stream"
+            >
+              <X size={12} />
+            </button>
+          </div>
+          <div className="w-80 flex-1 min-h-0 overflow-hidden">
+            <EventsView events={events} />
+          </div>
+        </div>
       </div>
 
       {menuOpen && (

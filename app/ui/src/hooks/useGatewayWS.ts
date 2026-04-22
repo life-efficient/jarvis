@@ -82,7 +82,18 @@ export function useGatewayWS() {
     }
   }, [])
 
-  return { events, status }
+  function sendRPC(method: string, params: unknown): void {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "req",
+        id: crypto.randomUUID(),
+        method,
+        params,
+      }))
+    }
+  }
+
+  return { events, status, sendRPC }
 }
 
 async function sendConnect(ws: WebSocket, nonce: string) {

@@ -1,4 +1,4 @@
-import { X, Radio, Zap, CalendarClock, Activity } from "lucide-react"
+import { X, Radio, Zap, CalendarClock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { View } from "@/App"
 
@@ -20,12 +20,6 @@ const ITEMS: { view: View; icon: React.ReactNode; label: string; description: st
     icon: <CalendarClock size={22} />,
     label: "Schedule & Reminders",
     description: "Recurring tasks and reminders",
-  },
-  {
-    view: "events",
-    icon: <Activity size={22} />,
-    label: "Event Stream",
-    description: "Raw gateway activity log",
   },
 ]
 
