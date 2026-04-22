@@ -10,7 +10,6 @@ services:
       - "3000:3000"
     environment:
       PORT: 3000
-      SETUP_PASSWORD: ${SETUP_PASSWORD:-password}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
