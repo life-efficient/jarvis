@@ -41,9 +41,12 @@ RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     tini \
+    nginx \
+    openssl \
     python3 \
     python3-venv \
-  && rm -rf /var/lib/apt/lists/*
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
 
@@ -61,6 +64,8 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 8080
+COPY app/ui/ /app/ui/
+
+EXPOSE 3000 3001
 
 ENTRYPOINT ["tini", "--", "/usr/local/bin/entrypoint.sh"]

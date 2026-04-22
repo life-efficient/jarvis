@@ -7,12 +7,13 @@ services:
       dockerfile: Dockerfile
     container_name: jarvis
     ports:
-      - "3000:3000"
+      - "3000:3000"   # Custom UI
+      - "3001:3001"   # OpenClaw Control UI
     environment:
-      PORT: 3000
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GATEWAY_PASSWORD: ${GATEWAY_PASSWORD:-}
       OPENCLAW_STATE_DIR: /data/.openclaw
       OPENCLAW_WORKSPACE_DIR: /data/workspace
     volumes:
