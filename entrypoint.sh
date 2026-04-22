@@ -51,5 +51,9 @@ if [ -n "$OPENROUTER_API_KEY" ]; then
   echo "[entrypoint] OpenClaw configured successfully"
 fi
 
+# Pre-configure the Control UI on every start so the token is registered in the gateway.
+# --no-open suppresses browser launch (safe in headless containers); prints the dashboard URL to logs.
+node /openclaw/dist/entry.js dashboard --no-open || true
+
 # Start the server
 exec node src/server.js

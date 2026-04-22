@@ -303,10 +303,11 @@ const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 
-// Serve custom Lit UI from dist (if built).
+// Serve custom Lit UI static assets (JS, CSS, images) but NOT index.html — the
+// GET "/" handler below injects the gateway token bootstrap script into index.html.
 const uiDistExists = fs.existsSync(UI_DIST);
 if (uiDistExists) {
-  app.use("/", express.static(UI_DIST));
+  app.use("/", express.static(UI_DIST, { index: false }));
 }
 
 // Minimal health endpoint for Railway.
@@ -1394,10 +1395,35 @@ proxy.on("proxyReqWs", (_proxyReq, req) => {
 });
 
 // --- Custom UI (Lit + TypeScript) ---
+
+// Inject a bootstrap script into index.html that pre-seeds the gateway token
+// into sessionStorage using the key storage.ts expects. This means visitors
+// never need to manually paste the openclaw dashboard URL.
+function buildTokenBootstrapScript(req) {
+  if (!OPENCLAW_GATEWAY_TOKEN) return "";
+  // Inject the token via the URL hash so it goes through the same applySettingsFromUrl
+  // code path as visiting the openclaw dashboard URL manually. The app reads #token=,
+  // stores it in sessionStorage, then cleans the hash — no custom key logic needed.
+  const escaped = JSON.stringify(OPENCLAW_GATEWAY_TOKEN);
+  return `<script>
+(function(){
+  if (!location.hash.includes("token=")) {
+    history.replaceState(null, "", location.pathname + location.search + "#token=" + ${escaped});
+  }
+})();
+</script>`;
+}
+
 app.get("/", async (req, res) => {
   if (uiDistExists) {
-    // Custom UI is built; serve SPA
-    return res.sendFile(path.join(UI_DIST, "index.html"));
+    try {
+      const html = fs.readFileSync(path.join(UI_DIST, "index.html"), "utf8");
+      const bootstrap = buildTokenBootstrapScript(req);
+      const injected = bootstrap ? html.replace("</head>", bootstrap + "\n</head>") : html;
+      return res.type("html").send(injected);
+    } catch {
+      return res.sendFile(path.join(UI_DIST, "index.html"));
+    }
   }
 
   // Fallback: if UI dist not available, proxy to gateway
@@ -1500,6 +1526,35 @@ const server = app.listen(PORT, "0.0.0.0", async () => {
     } catch (err) {
       console.error(`[wrapper] gateway failed to start at boot: ${String(err)}`);
     }
+  }
+
+  // Auto-approve pending device pairing requests so the web UI connects on first visit
+  // without the user needing to manually approve. Polls for 3 minutes post-startup.
+  if (isConfigured() && OPENCLAW_GATEWAY_TOKEN) {
+    let autoApproveAttempts = 0;
+    const AUTO_APPROVE_MAX = 36; // 3 min × 5s intervals
+    const autoApproveTimer = setInterval(async () => {
+      if (autoApproveAttempts++ >= AUTO_APPROVE_MAX) {
+        clearInterval(autoApproveTimer);
+        return;
+      }
+      try {
+        const r = await runCmd(
+          OPENCLAW_NODE,
+          clawArgs([
+            "devices", "approve", "--latest",
+            "--token", OPENCLAW_GATEWAY_TOKEN,
+            "--url", `ws://${INTERNAL_GATEWAY_HOST}:${INTERNAL_GATEWAY_PORT}`,
+          ]),
+          { timeoutMs: 5000 },
+        );
+        if (r.code === 0 && r.output.trim()) {
+          console.log(`[wrapper] auto-approved device pairing: ${r.output.trim()}`);
+        }
+      } catch {
+        // best-effort
+      }
+    }, 5000);
   }
 });
 
