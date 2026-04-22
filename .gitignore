@@ -11,6 +11,8 @@ build/
 out/
 ui/dist/
 ui/node_modules/
+app/ui/dist/
+app/ui/node_modules/
 
 # OS
 .DS_Store

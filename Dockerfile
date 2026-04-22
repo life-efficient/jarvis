@@ -33,6 +33,15 @@ ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:install && pnpm ui:build
 
 
+# Build the Jarvis custom UI
+FROM node:22-bookworm AS ui-build
+WORKDIR /build
+COPY app/ui/package*.json ./
+RUN npm install
+COPY app/ui/ ./
+RUN npm run build
+
+
 # Runtime image
 FROM node:22-bookworm
 ENV NODE_ENV=production
@@ -64,7 +73,7 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-COPY app/ui/ /app/ui/
+COPY --from=ui-build /build/dist /app/ui
 
 EXPOSE 3000 3001
 
