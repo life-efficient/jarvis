@@ -44,9 +44,13 @@ node /openclaw/dist/entry.js config set gateway.port "$OC_PORT"
 node /openclaw/dist/entry.js config set gateway.bind loopback
 node /openclaw/dist/entry.js config set gateway.auth.mode none
 
-# Optional password protection — set GATEWAY_PASSWORD env var to enable
+# Password protection — defaults to "password", override via GATEWAY_PASSWORD env var
+if [ "${GATEWAY_PASSWORD}" = "password" ]; then
+  echo "[entrypoint] WARNING: using default password. Set GATEWAY_PASSWORD in your .env to secure this instance."
+fi
 if [ -n "$GATEWAY_PASSWORD" ]; then
-  printf 'jarvis:%s\n' "$(openssl passwd -apr1 "$GATEWAY_PASSWORD")" > /etc/nginx/.htpasswd
+  _USER="${GATEWAY_USER:-admin}"
+  printf '%s:%s\n' "$_USER" "$(openssl passwd -apr1 "$GATEWAY_PASSWORD")" > /etc/nginx/.htpasswd
   printf 'auth_basic "Jarvis";\nauth_basic_user_file /etc/nginx/.htpasswd;\n' \
     > /etc/nginx/auth-include.conf
 else
