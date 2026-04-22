@@ -1,74 +1,68 @@
-import { useEffect, useRef, useState } from "react"
-import { Copy, Check } from "lucide-react"
+import { useState } from "react"
+import { Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useGatewayWS, type ConnectionStatus, type GatewayEvent } from "@/hooks/useGatewayWS"
+import { useGatewayWS, type ConnectionStatus } from "@/hooks/useGatewayWS"
+import { ChatView } from "@/components/ChatView"
+import { EventsView } from "@/components/EventsView"
+import { MenuOverlay } from "@/components/MenuOverlay"
 
-const statusLabel: Record<ConnectionStatus, string> = {
-  connecting:   "connecting…",
-  connected:    "● connected",
-  disconnected: "○ reconnecting…",
-  error:        "● error",
-}
+export type View = "chat" | "events" | "channels" | "skills" | "schedule"
 
-const statusClass: Record<ConnectionStatus, string> = {
-  connecting:   "text-muted-foreground bg-muted",
-  connected:    "text-emerald-400 bg-emerald-950",
-  disconnected: "text-muted-foreground bg-muted",
-  error:        "text-destructive bg-destructive/10",
+const statusDot: Record<ConnectionStatus, string> = {
+  connecting:   "bg-yellow-400/60",
+  connected:    "bg-emerald-400",
+  disconnected: "bg-muted-foreground",
+  error:        "bg-destructive",
 }
 
 export default function App() {
   const { events, status } = useGatewayWS()
-  const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [events])
+  const [view, setView] = useState<View>("chat")
+  const [menuOpen, setMenuOpen] = useState(false)
 
   return (
     <div className="flex flex-col h-dvh">
-      <header className="flex items-center gap-3 px-4 py-2.5 border-b border-border shrink-0">
-        <span className="text-sm font-semibold tracking-widest text-primary">jarvis</span>
-        <span className={cn("text-xs px-2 py-0.5 rounded-full", statusClass[status])}>
-          {statusLabel[status]}
+      <header className="flex items-center gap-3 px-4 py-3 shrink-0 border-b border-white/[0.06]">
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="w-9 h-9 rounded-full bg-white/[0.08] border border-white/[0.1] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu size={16} />
+        </button>
+
+        <span className="flex-1 text-center text-sm font-semibold tracking-widest text-foreground/80">
+          jarvis
         </span>
+
+        <div className="w-9 h-9 flex items-center justify-center">
+          <span className={cn("w-2 h-2 rounded-full", statusDot[status])} />
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-        {events.map(e => <EventEntry key={e.id} event={e} />)}
-        <div ref={bottomRef} />
+      <div className="flex-1 min-h-0">
+        {view === "chat"     && <ChatView />}
+        {view === "events"   && <EventsView events={events} />}
+        {view === "channels" && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
+        {view === "skills"   && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
+        {view === "schedule" && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
       </div>
+
+      {menuOpen && (
+        <MenuOverlay
+          onClose={() => setMenuOpen(false)}
+          onNavigate={v => setView(v)}
+        />
+      )}
     </div>
   )
 }
 
-function EventEntry({ event }: { event: GatewayEvent }) {
-  const [copied, setCopied] = useState(false)
-
-  const body = event.parsed !== null
-    ? JSON.stringify(event.parsed, null, 2)
-    : event.raw
-
-  function copy() {
-    navigator.clipboard.writeText(body)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
+function PlaceholderView({ title, description }: { title: string; description: string }) {
   return (
-    <div className="group relative rounded border-l-2 border-primary/40 bg-card px-3 py-2 text-xs">
-      <div className="text-muted-foreground mb-1">{event.ts}</div>
-      <pre className="text-foreground/80 whitespace-pre-wrap break-all leading-relaxed">{body}</pre>
-      <button
-        onClick={copy}
-        className={cn(
-          "absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity",
-          "text-muted-foreground hover:text-foreground hover:bg-muted"
-        )}
-        aria-label="Copy to clipboard"
-      >
-        {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-      </button>
+    <div className="flex flex-col items-center justify-center h-full px-8 text-center gap-3">
+      <div className="text-lg font-semibold text-foreground">{title}</div>
+      <div className="text-sm text-muted-foreground max-w-xs">{description}</div>
     </div>
   )
 }

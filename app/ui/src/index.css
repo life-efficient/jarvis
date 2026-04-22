@@ -4,32 +4,35 @@
 
 @layer base {
   :root {
-    --background:         222 13% 7%;
-    --foreground:         0 0% 83%;
-    --card:               222 13% 9%;
-    --card-foreground:    0 0% 83%;
-    --border:             222 13% 13%;
-    --input:              222 13% 13%;
-    --ring:               248 88% 70%;
-    --primary:            248 88% 70%;
-    --primary-foreground: 248 88% 10%;
-    --secondary:          222 13% 13%;
-    --secondary-foreground: 0 0% 83%;
-    --muted:              222 13% 13%;
-    --muted-foreground:   222 13% 45%;
-    --accent:             248 30% 16%;
-    --accent-foreground:  248 88% 70%;
-    --destructive:        0 72% 51%;
+    --background:            240 15% 5%;
+    --foreground:            0 0% 92%;
+    --card:                  240 15% 7%;
+    --card-foreground:       0 0% 92%;
+    --border:                240 10% 14%;
+    --input:                 240 10% 14%;
+    --ring:                  248 88% 70%;
+    --primary:               248 88% 70%;
+    --primary-foreground:    248 88% 10%;
+    --secondary:             240 10% 12%;
+    --secondary-foreground:  0 0% 92%;
+    --muted:                 240 10% 12%;
+    --muted-foreground:      240 8% 46%;
+    --accent:                248 30% 16%;
+    --accent-foreground:     248 88% 70%;
+    --destructive:           0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --radius:             0.375rem;
+    --radius:                0.75rem;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
+  html { height: 100%; }
   body {
-    @apply bg-background text-foreground font-mono;
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: radial-gradient(ellipse 120% 80% at 50% -10%, #1a1040 0%, #080810 55%);
+    min-height: 100%;
   }
 }
