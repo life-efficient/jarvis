@@ -105,12 +105,11 @@ export default function App() {
         </div>
       </div>
 
-      {menuOpen && (
-        <MenuOverlay
-          onClose={closeMenu}
-          onNavigate={navigate}
-        />
-      )}
+      <MenuOverlay
+        open={menuOpen}
+        onClose={closeMenu}
+        onNavigate={navigate}
+      />
     </div>
   )
 }

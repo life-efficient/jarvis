@@ -92,8 +92,8 @@ function applyTheme(state: ThemeState) {
   if (font.googleUrl) loadGoogleFont(font.googleUrl)
   document.body.style.fontFamily = font.family
   document.body.style.background = isDark
-    ? `radial-gradient(ellipse 120% 80% at 50% -10%, ${accent.gradientDark} 0%, #080810 55%)`
-    : `radial-gradient(ellipse 120% 80% at 50% -10%, ${accent.gradientLight} 0%, #f8f8fc 55%)`
+    ? `radial-gradient(ellipse 120% 80% at 50% -10%, ${accent.gradientDark} 0%, #16161e 55%)`
+    : `radial-gradient(ellipse 120% 80% at 50% -10%, ${accent.gradientLight} 0%, #e6e6ed 55%)`
 }
 
 export function useTheme() {

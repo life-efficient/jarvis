@@ -1,23 +1,43 @@
+import { useEffect, useState } from "react"
 import { ChevronLeft, Radio, Zap, CalendarClock, Palette, Sparkles } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { View } from "@/App"
 
 const ITEMS: { view: View; icon: React.ReactNode; label: string }[] = [
-  { view: "channels",   icon: <Radio size={48} />,        label: "Channels" },
-  { view: "skills",     icon: <Zap size={48} />,          label: "Skills" },
+  { view: "channels",   icon: <Radio size={48} />,         label: "Channels" },
+  { view: "skills",     icon: <Zap size={48} />,           label: "Skills" },
   { view: "schedule",   icon: <CalendarClock size={48} />, label: "Schedule" },
-  { view: "appearance",  icon: <Palette size={48} />,     label: "Appearance" },
-  { view: "personality", icon: <Sparkles size={48} />,    label: "Personality" },
+  { view: "appearance", icon: <Palette size={48} />,       label: "Appearance" },
+  { view: "personality",icon: <Sparkles size={48} />,      label: "Personality" },
 ]
 
 interface MenuOverlayProps {
+  open: boolean
   onClose: () => void
   onNavigate: (view: View) => void
 }
 
-export function MenuOverlay({ onClose, onNavigate }: MenuOverlayProps) {
+export function MenuOverlay({ open, onClose, onNavigate }: MenuOverlayProps) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      // Mount first, then trigger transition on next frame
+      const id = requestAnimationFrame(() => setVisible(true))
+      return () => cancelAnimationFrame(id)
+    } else {
+      setVisible(false)
+    }
+  }, [open])
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-2xl"
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center",
+        "bg-background/85 backdrop-blur-2xl",
+        "transition-opacity duration-300 ease-in-out",
+        visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+      )}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <button
@@ -28,7 +48,13 @@ export function MenuOverlay({ onClose, onNavigate }: MenuOverlayProps) {
         <ChevronLeft size={16} />
       </button>
 
-      <div className="flex flex-wrap justify-center gap-16 max-w-sm">
+      <div
+        className={cn(
+          "flex flex-wrap justify-center gap-16 max-w-sm",
+          "transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+          visible ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2",
+        )}
+      >
         {ITEMS.map(item => (
           <button
             key={item.view}
