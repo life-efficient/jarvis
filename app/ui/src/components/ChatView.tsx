@@ -210,7 +210,7 @@ function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps)
         className={cn(
           "shrink-0 self-end w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
           value.trim() && !busy
-            ? "bg-primary text-primary-foreground scale-100"
+            ? "bg-primary/20 text-primary scale-100"
             : "bg-foreground/[0.07] text-muted-foreground scale-95"
         )}
         aria-label="Send"

@@ -61,7 +61,7 @@ export function MenuOverlay({ open, onClose, onNavigate }: MenuOverlayProps) {
             onClick={() => onNavigate(item.view)}
             className="flex flex-col items-center gap-3 text-foreground/50 hover:text-foreground transition-colors active:scale-95"
           >
-            <div className="text-primary">{item.icon}</div>
+            <div className="text-primary/60">{item.icon}</div>
             <span className="text-sm font-medium">{item.label}</span>
           </button>
         ))}
