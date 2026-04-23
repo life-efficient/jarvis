@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import type { ConnectionStatus, SendRPC } from "./useGatewayWS"
 
+const AGENT_ID    = "main"
 const SESSION_KEY = "agent:main:main"
 const STORAGE_KEY = "jarvis-agent-name"
 
@@ -11,6 +12,28 @@ export interface AgentInfo {
 
 function storedName(): string {
   return localStorage.getItem(STORAGE_KEY) ?? "Jarvis"
+}
+
+// Port of OpenClaw's mergeIdentityMarkdownContent for the name field
+function mergeIdentityName(content: string | undefined, name: string): string {
+  const lines = content
+    ? content.replace(/\r\n/g, "\n").split("\n")
+    : ["# IDENTITY.md - Agent Identity", ""]
+
+  const result = [...lines]
+  const nameLineIdx = result.findIndex(line =>
+    /^\s*-\s*\*{0,2}Name\*{0,2}\s*:/i.test(line),
+  )
+
+  if (nameLineIdx >= 0) {
+    result[nameLineIdx] = `- Name: ${name}`
+  } else {
+    const headingIdx = result.findIndex(line => line.trim().startsWith("#"))
+    const insertAt = headingIdx >= 0 ? headingIdx + 1 : 0
+    result.splice(insertAt, 0, `- Name: ${name}`)
+  }
+
+  return result.join("\n").replace(/\n*$/, "\n")
 }
 
 export function useAgentInfo(sendRPC: SendRPC, status: ConnectionStatus) {
@@ -35,28 +58,18 @@ export function useAgentInfo(sendRPC: SendRPC, status: ConnectionStatus) {
   async function updateIdentity(name: string) {
     setSaving(true)
     try {
-      const snapshot = await sendRPC("config.get", {}) as {
-        hash?: string
-        config?: Record<string, unknown>
-        raw?: string
+      const getRes = await sendRPC("agents.files.get", { agentId: AGENT_ID, name: "IDENTITY.md" }) as {
+        file?: { content?: string; missing?: boolean }
       }
-      const baseHash = snapshot.hash
-      if (!baseHash) throw new Error("config hash missing")
+      const currentContent = getRes.file?.missing ? undefined : (getRes.file?.content ?? undefined)
+      const updatedContent = mergeIdentityName(currentContent, name)
 
-      const config: Record<string, unknown> = snapshot.config
-        ? JSON.parse(JSON.stringify(snapshot.config))
-        : snapshot.raw
-          ? JSON.parse(snapshot.raw)
-          : {}
+      await sendRPC("agents.files.set", {
+        agentId: AGENT_ID,
+        name: "IDENTITY.md",
+        content: updatedContent,
+      })
 
-      const agentsSection = config.agents as Record<string, unknown> | undefined
-      const list = agentsSection?.list as Record<string, unknown>[] | undefined
-      const entry = list?.find(a => a.id === "main")
-      if (entry) {
-        entry.identity = { ...(entry.identity as object ?? {}), name }
-      }
-
-      await sendRPC("config.set", { raw: JSON.stringify(config, null, 2), baseHash })
       await fetchIdentity()
     } finally {
       setSaving(false)
