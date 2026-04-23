@@ -23,6 +23,8 @@ export default function App() {
   const { events, status, sendRPC } = useGatewayWS()
   useTheme()
   const { agent, saving, updateIdentity } = useAgentInfo(sendRPC, status)
+
+  useEffect(() => { document.title = agent.name }, [agent.name])
   const [view, setView] = useState<View>("chat")
   const [menuOpen, setMenuOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
@@ -74,7 +76,7 @@ export default function App() {
 
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0">
-          {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} />}
+          {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} agentName={agent.name} />}
           {view === "channels"    && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
           {view === "skills"      && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
           {view === "schedule"    && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}

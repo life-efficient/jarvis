@@ -32,9 +32,10 @@ function extractText(message: unknown): string {
 interface ChatViewProps {
   events: GatewayEvent[]
   sendRPC: (method: string, params: unknown) => void
+  agentName: string
 }
 
-export function ChatView({ events, sendRPC }: ChatViewProps) {
+export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
@@ -157,7 +158,7 @@ export function ChatView({ events, sendRPC }: ChatViewProps) {
             onKeyDown={e => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() }
             }}
-            placeholder="Message Jarvis…"
+            placeholder={`Message ${agentName}…`}
             rows={1}
             className="flex-1 bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground leading-relaxed max-h-32"
           />
