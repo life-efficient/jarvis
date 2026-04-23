@@ -6,6 +6,7 @@ import {
 } from "@/lib/device-identity"
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error"
+export type SendRPC = (method: string, params: unknown) => Promise<unknown>
 
 export interface GatewayEvent {
   id: string
@@ -22,7 +23,8 @@ const SCOPES      = ["operator.admin", "operator.read"]
 export function useGatewayWS() {
   const [events, setEvents] = useState<GatewayEvent[]>([])
   const [status, setStatus] = useState<ConnectionStatus>("connecting")
-  const wsRef = useRef<WebSocket | null>(null)
+  const wsRef     = useRef<WebSocket | null>(null)
+  const pendingRef = useRef<Map<string, (result: unknown) => void>>(new Map())
 
   useEffect(() => {
     let cancelled = false
@@ -48,6 +50,14 @@ export function useGatewayWS() {
         }
 
         if (frame?.type === "res") {
+          const id = frame.id as string | undefined
+          const pending = id ? pendingRef.current.get(id) : undefined
+          if (pending) {
+            pendingRef.current.delete(id!)
+            pending(frame.result ?? frame.payload ?? frame)
+            return
+          }
+          // connect res — no pending handler registered
           if (frame.error == null) {
             setStatus("connected")
           } else {
@@ -82,15 +92,23 @@ export function useGatewayWS() {
     }
   }, [])
 
-  function sendRPC(method: string, params: unknown): void {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: "req",
-        id: crypto.randomUUID(),
-        method,
-        params,
-      }))
-    }
+  function sendRPC(method: string, params: unknown): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        reject(new Error("not connected"))
+        return
+      }
+      const id = crypto.randomUUID()
+      const timer = setTimeout(() => {
+        pendingRef.current.delete(id)
+        reject(new Error("timeout"))
+      }, 10_000)
+      pendingRef.current.set(id, result => {
+        clearTimeout(timer)
+        resolve(result)
+      })
+      wsRef.current.send(JSON.stringify({ type: "req", id, method, params }))
+    })
   }
 
   return { events, status, sendRPC }
@@ -112,7 +130,7 @@ async function sendConnect(ws: WebSocket, nonce: string) {
 
   const signature = await signDevicePayload(identity.privateKey, payload)
 
-  const frame = {
+  ws.send(JSON.stringify({
     type:   "req",
     id:     crypto.randomUUID(),
     method: "connect",
@@ -138,7 +156,5 @@ async function sendConnect(ws: WebSocket, nonce: string) {
       userAgent: navigator.userAgent,
       locale:    navigator.language,
     },
-  }
-
-  ws.send(JSON.stringify(frame))
+  }))
 }

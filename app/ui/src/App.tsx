@@ -6,9 +6,10 @@ import { useTheme } from "@/hooks/useTheme"
 import { ChatView } from "@/components/ChatView"
 import { EventsView } from "@/components/EventsView"
 import { ThemeView } from "@/components/ThemeView"
+import { PersonalityView } from "@/components/PersonalityView"
 import { MenuOverlay } from "@/components/MenuOverlay"
 
-export type View = "chat" | "channels" | "skills" | "schedule" | "appearance"
+export type View = "chat" | "channels" | "skills" | "schedule" | "appearance" | "personality"
 
 const activityColor: Record<ConnectionStatus, string> = {
   connecting:   "text-yellow-400/60",
@@ -71,11 +72,12 @@ export default function App() {
 
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0">
-          {view === "chat"       && <ChatView events={events} sendRPC={sendRPC} />}
-          {view === "channels"   && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
-          {view === "skills"     && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
-          {view === "schedule"   && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
-          {view === "appearance" && <ThemeView />}
+          {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} />}
+          {view === "channels"    && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
+          {view === "skills"      && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
+          {view === "schedule"    && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
+          {view === "appearance"  && <ThemeView />}
+          {view === "personality" && <PersonalityView />}
         </div>
 
         <div className={cn(

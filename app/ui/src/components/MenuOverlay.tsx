@@ -1,11 +1,12 @@
-import { ChevronLeft, Radio, Zap, CalendarClock, Palette } from "lucide-react"
+import { ChevronLeft, Radio, Zap, CalendarClock, Palette, Sparkles } from "lucide-react"
 import type { View } from "@/App"
 
 const ITEMS: { view: View; icon: React.ReactNode; label: string }[] = [
   { view: "channels",   icon: <Radio size={32} />,         label: "Channels" },
   { view: "skills",     icon: <Zap size={32} />,           label: "Skills" },
   { view: "schedule",   icon: <CalendarClock size={32} />,  label: "Schedule" },
-  { view: "appearance", icon: <Palette size={32} />,       label: "Appearance" },
+  { view: "appearance",  icon: <Palette size={32} />,    label: "Appearance" },
+  { view: "personality", icon: <Sparkles size={32} />,   label: "Personality" },
 ]
 
 interface MenuOverlayProps {
