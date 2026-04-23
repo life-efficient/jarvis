@@ -190,7 +190,7 @@ function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps)
       "transition-[border-color,box-shadow] duration-200",
       "focus-within:border-foreground/[0.20] focus-within:shadow-[0_2px_24px_rgba(0,0,0,0.18)]",
     )}>
-      <div className="flex-1 flex items-center min-h-[1.75rem]">
+      <div className="flex-1 flex items-center min-h-[2rem]">
         <textarea
           ref={ref}
           value={value}
