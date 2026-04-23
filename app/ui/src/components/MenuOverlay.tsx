@@ -2,11 +2,11 @@ import { ChevronLeft, Radio, Zap, CalendarClock, Palette, Sparkles } from "lucid
 import type { View } from "@/App"
 
 const ITEMS: { view: View; icon: React.ReactNode; label: string }[] = [
-  { view: "channels",   icon: <Radio size={32} />,         label: "Channels" },
-  { view: "skills",     icon: <Zap size={32} />,           label: "Skills" },
-  { view: "schedule",   icon: <CalendarClock size={32} />,  label: "Schedule" },
-  { view: "appearance",  icon: <Palette size={32} />,    label: "Appearance" },
-  { view: "personality", icon: <Sparkles size={32} />,   label: "Personality" },
+  { view: "channels",   icon: <Radio size={48} />,        label: "Channels" },
+  { view: "skills",     icon: <Zap size={48} />,          label: "Skills" },
+  { view: "schedule",   icon: <CalendarClock size={48} />, label: "Schedule" },
+  { view: "appearance",  icon: <Palette size={48} />,     label: "Appearance" },
+  { view: "personality", icon: <Sparkles size={48} />,    label: "Personality" },
 ]
 
 interface MenuOverlayProps {
@@ -28,7 +28,7 @@ export function MenuOverlay({ onClose, onNavigate }: MenuOverlayProps) {
         <ChevronLeft size={16} />
       </button>
 
-      <div className="grid grid-cols-2 gap-12 px-12">
+      <div className="flex flex-wrap justify-center gap-16 max-w-sm">
         {ITEMS.map(item => (
           <button
             key={item.view}

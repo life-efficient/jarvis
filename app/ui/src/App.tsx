@@ -3,6 +3,7 @@ import { ChevronLeft, Grip, Activity, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGatewayWS, type ConnectionStatus } from "@/hooks/useGatewayWS"
 import { useTheme } from "@/hooks/useTheme"
+import { useAgentInfo } from "@/hooks/useAgentInfo"
 import { ChatView } from "@/components/ChatView"
 import { EventsView } from "@/components/EventsView"
 import { ThemeView } from "@/components/ThemeView"
@@ -21,6 +22,7 @@ const activityColor: Record<ConnectionStatus, string> = {
 export default function App() {
   const { events, status, sendRPC } = useGatewayWS()
   useTheme()
+  const { agent, saving, updateIdentity } = useAgentInfo(sendRPC, status)
   const [view, setView] = useState<View>("chat")
   const [menuOpen, setMenuOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
@@ -53,7 +55,7 @@ export default function App() {
         </button>
 
         <span className="flex-1 text-center text-sm font-semibold tracking-widest text-foreground/80">
-          jarvis
+          {agent.name.toLowerCase()}
         </span>
 
         <button
@@ -77,7 +79,7 @@ export default function App() {
           {view === "skills"      && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
           {view === "schedule"    && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
           {view === "appearance"  && <ThemeView />}
-          {view === "personality" && <PersonalityView />}
+          {view === "personality" && <PersonalityView agent={agent} saving={saving} updateIdentity={updateIdentity} />}
         </div>
 
         <div className={cn(
