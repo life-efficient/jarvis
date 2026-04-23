@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ChevronLeft, Grip, Activity, X } from "lucide-react"
+import { ChevronLeft, Grip, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGatewayWS, type ConnectionStatus } from "@/hooks/useGatewayWS"
 import { useTheme } from "@/hooks/useTheme"
@@ -37,6 +37,10 @@ export default function App() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "`") {
+        setLogsOpen(v => !v)
+        return
+      }
       if (e.key !== "Escape") return
       if (menuOpen) { closeMenu(); return }
       if (isSubView) { openMenu() }
@@ -60,18 +64,7 @@ export default function App() {
           {agent.name.toLowerCase()}
         </span>
 
-        <button
-          onClick={() => setLogsOpen(v => !v)}
-          className={cn(
-            "w-9 h-9 rounded-full bg-foreground/[0.06] border border-foreground/[0.08] flex items-center justify-center transition-colors",
-            logsOpen
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : cn("hover:text-foreground", activityColor[status])
-          )}
-          aria-label="Toggle event stream"
-        >
-          <Activity size={16} />
-        </button>
+        <div className="w-9 h-9" />
       </header>
 
       <div className="flex-1 min-h-0 flex">

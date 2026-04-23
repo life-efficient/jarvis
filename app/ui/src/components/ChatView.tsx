@@ -149,35 +149,74 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
         </div>
       </div>
 
-      <div className="px-4 pb-6 pt-2">
+      <div className="px-4 pb-5 pt-2">
         <div className="max-w-2xl mx-auto">
-        <div className="flex items-end gap-3 bg-foreground/[0.05] backdrop-blur-xl border border-foreground/[0.09] rounded-2xl px-4 py-3 shadow-lg shadow-black/10">
-          <textarea
+          <InputBox
             value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() }
-            }}
+            onChange={setInput}
+            onSend={send}
             placeholder={`Message ${agentName}…`}
-            rows={1}
-            className="flex-1 bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground leading-relaxed max-h-32"
+            busy={busy}
           />
-          <button
-            onClick={send}
-            disabled={!input.trim() || busy}
-            className={cn(
-              "shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
-              input.trim() && !busy
-                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                : "bg-foreground/[0.06] text-muted-foreground"
-            )}
-            aria-label="Send"
-          >
-            <Send size={14} />
-          </button>
-        </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+interface InputBoxProps {
+  value: string
+  onChange: (v: string) => void
+  onSend: () => void
+  placeholder: string
+  busy: boolean
+}
+
+function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+
+  return (
+    <div className={cn(
+      "flex items-end gap-2 rounded-3xl border px-4 py-3",
+      "bg-foreground/[0.05] border-foreground/[0.10]",
+      "shadow-[0_2px_20px_rgba(0,0,0,0.12)] backdrop-blur-xl",
+      "transition-[border-color,box-shadow] duration-200",
+      "focus-within:border-foreground/[0.20] focus-within:shadow-[0_2px_24px_rgba(0,0,0,0.18)]",
+    )}>
+      <div className="flex-1 flex items-center min-h-[1.75rem]">
+        <textarea
+          ref={ref}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend() }
+          }}
+          placeholder={placeholder}
+          rows={1}
+          style={{ maxHeight: "160px" }}
+          className="w-full bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground leading-relaxed overflow-y-auto"
+        />
+      </div>
+      <button
+        onClick={onSend}
+        disabled={!value.trim() || busy}
+        className={cn(
+          "shrink-0 self-end w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+          value.trim() && !busy
+            ? "bg-primary text-primary-foreground scale-100"
+            : "bg-foreground/[0.07] text-muted-foreground scale-95"
+        )}
+        aria-label="Send"
+      >
+        <Send size={13} />
+      </button>
     </div>
   )
 }
