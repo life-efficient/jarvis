@@ -7,6 +7,7 @@ import { useAgentInfo } from "@/hooks/useAgentInfo"
 import { ChatView } from "@/components/ChatView"
 import { EventsView } from "@/components/EventsView"
 import { ThemeView } from "@/components/ThemeView"
+import { SkillsView } from "@/components/SkillsView"
 import { PersonalityView } from "@/components/PersonalityView"
 import { MenuOverlay } from "@/components/MenuOverlay"
 
@@ -71,7 +72,7 @@ export default function App() {
         <div className="flex-1 min-w-0">
           {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} agentName={agent.name} />}
           {view === "channels"    && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
-          {view === "skills"      && <PlaceholderView title="Skills" description="Configure what Jarvis can do for you — coming soon." />}
+          {view === "skills"      && <SkillsView sendRPC={sendRPC} />}
           {view === "schedule"    && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
           {view === "appearance"  && <ThemeView />}
           {view === "personality" && <PersonalityView agent={agent} saving={saving} updateIdentity={updateIdentity} />}
