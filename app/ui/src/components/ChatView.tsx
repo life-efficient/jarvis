@@ -39,10 +39,18 @@ export function ChatView({ events, sendRPC }: ChatViewProps) {
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const atBottom = useRef(true)
   const seenEventCount = useRef(0)
 
+  function onScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+  }
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (atBottom.current) bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   // Process new chat.event frames as they arrive
@@ -128,18 +136,21 @@ export function ChatView({ events, sendRPC }: ChatViewProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-        {messages.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground mt-16">
-            Say something to get started.
-          </p>
-        )}
-        {messages.map(m => <Bubble key={m.id} message={m} />)}
-        <div ref={bottomRef} />
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto py-6">
+        <div className="max-w-2xl mx-auto px-4 space-y-4">
+          {messages.length === 0 && (
+            <p className="text-center text-sm text-muted-foreground mt-16">
+              Say something to get started.
+            </p>
+          )}
+          {messages.map(m => <Bubble key={m.id} message={m} />)}
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       <div className="px-4 pb-6 pt-2">
-        <div className="flex items-end gap-3 bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl px-4 py-3 shadow-lg shadow-black/20">
+        <div className="max-w-2xl mx-auto">
+        <div className="flex items-end gap-3 bg-foreground/[0.05] backdrop-blur-xl border border-foreground/[0.09] rounded-2xl px-4 py-3 shadow-lg shadow-black/10">
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -157,12 +168,13 @@ export function ChatView({ events, sendRPC }: ChatViewProps) {
               "shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
               input.trim() && !busy
                 ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                : "bg-white/[0.06] text-muted-foreground"
+                : "bg-foreground/[0.06] text-muted-foreground"
             )}
             aria-label="Send"
           >
             <Send size={14} />
           </button>
+        </div>
         </div>
       </div>
     </div>
@@ -177,7 +189,7 @@ function Bubble({ message }: { message: Message }) {
         "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
         isUser
           ? "bg-primary/20 border border-primary/20 text-foreground rounded-br-sm"
-          : "bg-white/[0.06] border border-white/[0.08] text-foreground rounded-bl-sm"
+          : "bg-foreground/[0.06] border border-foreground/[0.08] text-foreground rounded-bl-sm"
       )}>
         {message.text}
         {message.streaming && <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}

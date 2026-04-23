@@ -4,6 +4,28 @@
 
 @layer base {
   :root {
+    /* light mode */
+    --background:            0 0% 98%;
+    --foreground:            240 10% 10%;
+    --card:                  0 0% 100%;
+    --card-foreground:       240 10% 10%;
+    --border:                240 6% 88%;
+    --input:                 240 6% 88%;
+    --ring:                  248 88% 58%;
+    --primary:               248 88% 58%;
+    --primary-foreground:    248 88% 97%;
+    --secondary:             240 6% 93%;
+    --secondary-foreground:  240 10% 10%;
+    --muted:                 240 6% 93%;
+    --muted-foreground:      240 5% 48%;
+    --accent:                248 30% 92%;
+    --accent-foreground:     248 88% 58%;
+    --destructive:           0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --radius:                0.75rem;
+  }
+
+  .dark {
     --background:            240 15% 5%;
     --foreground:            0 0% 92%;
     --card:                  240 15% 7%;
@@ -30,9 +52,7 @@
   html { height: 100%; }
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background: radial-gradient(ellipse 120% 80% at 50% -10%, #1a1040 0%, #080810 55%);
     min-height: 100%;
   }
 }
