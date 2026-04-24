@@ -138,7 +138,7 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
   return (
     <div className="flex flex-col h-full">
       <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto py-6">
-        <div className="max-w-2xl mx-auto px-4 space-y-4">
+        <div className="max-w-2xl mx-auto space-y-5">
           {messages.length === 0 && (
             <p className="text-center text-sm text-muted-foreground mt-16">
               Say something to get started.
@@ -188,7 +188,7 @@ function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps)
       "bg-foreground/[0.05] border-foreground/[0.10]",
       "shadow-[0_2px_20px_rgba(0,0,0,0.12)] backdrop-blur-xl",
       "transition-[border-color,box-shadow] duration-200",
-      "focus-within:border-foreground/[0.20] focus-within:shadow-[0_2px_24px_rgba(0,0,0,0.18)]",
+      "focus-within:border-primary/30 focus-within:shadow-[0_4px_28px_rgba(0,0,0,0.22),0_0_0_1px_rgba(139,92,246,0.07)]",
     )}>
       <div className="flex-1 flex items-center min-h-[2rem]">
         <textarea
@@ -223,17 +223,29 @@ function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps)
 
 function Bubble({ message }: { message: Message }) {
   const isUser = message.role === "user"
+  const time = message.ts.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   return (
-    <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex flex-col msg-in", isUser ? "items-end" : "items-start")}>
       <div className={cn(
-        "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+        "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap",
         isUser
-          ? "bg-primary/20 border border-primary/20 text-foreground rounded-br-sm"
-          : "bg-foreground/[0.06] border border-foreground/[0.08] text-foreground rounded-bl-sm"
+          ? [
+              "bg-gradient-to-b from-primary/30 to-primary/[0.18]",
+              "border border-primary/30",
+              "text-foreground rounded-br-sm",
+              "shadow-[0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)]",
+            ]
+          : [
+              "bg-foreground/[0.09]",
+              "border border-foreground/[0.13]",
+              "text-foreground rounded-bl-sm",
+              "shadow-[0_1px_6px_rgba(0,0,0,0.2)]",
+            ]
       )}>
         {message.text}
         {message.streaming && <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
       </div>
+      <span className="text-[10px] mt-1 px-1 select-none text-foreground/25">{time}</span>
     </div>
   )
 }
