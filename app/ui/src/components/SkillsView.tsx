@@ -50,8 +50,6 @@ export function SkillsView({ sendRPC }: SkillsViewProps) {
   const [filter, setFilter] = useState<Filter>("all")
   const [togglingKey, setTogglingKey] = useState<string | null>(null)
   const [selected, setSelected] = useState<SkillEntry | null>(null)
-  const [skillDoc, setSkillDoc] = useState<string | null>(null)
-  const [docLoading, setDocLoading] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -68,21 +66,8 @@ export function SkillsView({ sendRPC }: SkillsViewProps) {
 
   useEffect(() => { void load() }, [])
 
-  async function selectSkill(skill: SkillEntry) {
+  function selectSkill(skill: SkillEntry) {
     setSelected(skill)
-    setSkillDoc(null)
-    setDocLoading(true)
-    try {
-      const res = await sendRPC("agents.files.get", {
-        agentId: "main",
-        name: skill.baseDir + "/SKILL.md",
-      }) as { file?: { content?: string; missing?: boolean } }
-      setSkillDoc((!res.file?.missing && res.file?.content) ? res.file.content : null)
-    } catch {
-      setSkillDoc(null)
-    } finally {
-      setDocLoading(false)
-    }
   }
 
   async function toggle(skill: SkillEntry, e: React.MouseEvent) {
@@ -145,7 +130,7 @@ export function SkillsView({ sendRPC }: SkillsViewProps) {
                   return (
                     <div
                       key={skill.skillKey}
-                      onClick={() => void selectSkill(skill)}
+                      onClick={() => selectSkill(skill)}
                       className={cn(
                         "flex items-center gap-4 rounded-2xl border px-4 py-3.5 cursor-pointer transition-colors",
                         isSelected
@@ -210,42 +195,36 @@ export function SkillsView({ sendRPC }: SkillsViewProps) {
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 py-5">
-                {docLoading ? (
-                  <div className="text-base text-muted-foreground">Loading…</div>
-                ) : skillDoc ? (
-                  <pre className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap font-mono">{skillDoc}</pre>
-                ) : (
-                  <div className="space-y-5">
-                    {selected.description && (
-                      <p className="text-base text-foreground/70 leading-relaxed">{selected.description}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      {(() => {
-                        const status = statusLabel(selected)
-                        return (
-                          <span className={cn("text-sm px-3 py-1 rounded-full font-medium", status.className)}>
-                            {status.label}
-                          </span>
-                        )
-                      })()}
-                      {selected.bundled && (
-                        <span className="text-sm px-3 py-1 rounded-full font-medium text-muted-foreground bg-foreground/[0.06]">
-                          Bundled
+                <div className="space-y-5">
+                  {selected.description && (
+                    <p className="text-base text-foreground/70 leading-relaxed">{selected.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {(() => {
+                      const status = statusLabel(selected)
+                      return (
+                        <span className={cn("text-sm px-3 py-1 rounded-full font-medium", status.className)}>
+                          {status.label}
                         </span>
-                      )}
-                    </div>
-                    {selected.homepage && (
-                      <a
-                        href={selected.homepage}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block text-sm text-primary/70 hover:text-primary transition-colors"
-                      >
-                        {selected.homepage}
-                      </a>
+                      )
+                    })()}
+                    {selected.bundled && (
+                      <span className="text-sm px-3 py-1 rounded-full font-medium text-muted-foreground bg-foreground/[0.06]">
+                        Bundled
+                      </span>
                     )}
                   </div>
-                )}
+                  {selected.homepage && (
+                    <a
+                      href={selected.homepage}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-sm text-primary/70 hover:text-primary transition-colors"
+                    >
+                      {selected.homepage}
+                    </a>
+                  )}
+                </div>
               </div>
             </>
           )}
