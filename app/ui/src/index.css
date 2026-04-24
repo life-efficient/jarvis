@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* light mode */
+    --background:            240 12% 91%;
+    --foreground:            240 12% 12%;
+    --card:                  240 10% 95%;
+    --card-foreground:       240 12% 12%;
+    --border:                240 8% 82%;
+    --input:                 240 8% 82%;
+    --ring:                  248 88% 58%;
+    --primary:               248 88% 58%;
+    --primary-foreground:    248 88% 97%;
+    --secondary:             240 8% 86%;
+    --secondary-foreground:  240 12% 12%;
+    --muted:                 240 8% 86%;
+    --muted-foreground:      240 6% 44%;
+    --accent:                248 30% 88%;
+    --accent-foreground:     248 88% 58%;
+    --destructive:           0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --radius:                0.75rem;
+  }
+
+  .dark {
+    --background:            240 12% 11%;
+    --foreground:            0 0% 90%;
+    --card:                  240 12% 14%;
+    --card-foreground:       0 0% 90%;
+    --border:                240 10% 20%;
+    --input:                 240 10% 20%;
+    --ring:                  248 88% 70%;
+    --primary:               248 88% 70%;
+    --primary-foreground:    248 88% 10%;
+    --secondary:             240 10% 17%;
+    --secondary-foreground:  0 0% 90%;
+    --muted:                 240 10% 17%;
+    --muted-foreground:      240 8% 50%;
+    --accent:                248 30% 20%;
+    --accent-foreground:     248 88% 70%;
+    --destructive:           0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --radius:                0.75rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  *:focus { outline: none; }
+  *:focus-visible { outline: none; }
+  html { height: 100%; }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+}
+
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.msg-in { animation: msg-in 0.2s ease-out both; }
