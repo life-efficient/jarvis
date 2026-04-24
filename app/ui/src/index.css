@@ -59,6 +59,47 @@
   }
 }
 
+/* ── Tiptap markdown bubble styles ── */
+.markdown-content .tiptap {
+  @apply text-sm leading-relaxed outline-none;
+}
+.markdown-content .tiptap > * + * { @apply mt-2; }
+
+.markdown-content .tiptap p { @apply leading-relaxed; }
+
+.markdown-content .tiptap h1 { @apply text-base font-bold mt-3 mb-1; }
+.markdown-content .tiptap h2 { @apply text-sm font-semibold mt-3 mb-1 text-foreground/90; }
+.markdown-content .tiptap h3 { @apply text-sm font-semibold mt-2 mb-0.5 text-foreground/80; }
+
+.markdown-content .tiptap strong { @apply font-semibold text-foreground; }
+.markdown-content .tiptap em { @apply italic; }
+
+.markdown-content .tiptap ul { @apply list-disc pl-4 space-y-0.5; }
+.markdown-content .tiptap ol { @apply list-decimal pl-4 space-y-0.5; }
+.markdown-content .tiptap li { @apply leading-relaxed; }
+
+.markdown-content .tiptap code {
+  @apply font-mono text-[0.8em] bg-foreground/10 rounded px-1 py-0.5;
+}
+.markdown-content .tiptap pre {
+  @apply bg-foreground/10 rounded-lg px-3 py-2.5 overflow-x-auto my-2;
+}
+.markdown-content .tiptap pre code {
+  @apply bg-transparent px-0 py-0 text-[0.8em];
+}
+
+.markdown-content .tiptap blockquote {
+  @apply border-l-2 border-foreground/20 pl-3 text-foreground/60 italic my-2;
+}
+
+.markdown-content .tiptap hr {
+  @apply border-foreground/10 my-3;
+}
+
+.markdown-content .tiptap a {
+  @apply text-primary underline underline-offset-2 hover:text-primary/80;
+}
+
 @keyframes msg-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }

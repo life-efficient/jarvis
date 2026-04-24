@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import { Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { GatewayEvent } from "@/hooks/useGatewayWS"
+import { MarkdownContent } from "@/components/MarkdownContent"
 
 const SESSION_KEY = "agent:main:main"
 
@@ -62,7 +63,28 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
 
     for (const e of newEvents) {
       const frame = e.parsed as Record<string, unknown> | null
-      if (frame?.type !== "event" || frame?.event !== "chat") continue
+      if (frame?.type !== "event") continue
+
+      // agent events carry real-time streaming text
+      if (frame.event === "agent") {
+        const payload = frame.payload as Record<string, unknown> | null
+        if (!payload) continue
+        const data = payload.data as Record<string, unknown> | null
+        if (payload.stream !== "assistant" || !data?.text) continue
+        const runId = payload.runId as string
+        const text = data.text as string
+        setBusy(true)
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
+            return [...prev.slice(0, -1), { ...last, id: runId, text }]
+          }
+          return [...prev, { id: runId, role: "assistant", text, ts: new Date(), streaming: true }]
+        })
+        continue
+      }
+
+      if (frame.event !== "chat") continue
 
       const payload = frame.payload as Record<string, unknown> | null
       if (!payload) continue
@@ -75,7 +97,7 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
         setMessages(prev => {
           const last = prev[prev.length - 1]
           if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
-            return [...prev.slice(0, -1), { ...last, id: runId as string, text: last.text + text }]
+            return [...prev.slice(0, -1), { ...last, id: runId as string, text }]
           }
           return [...prev, {
             id: runId as string ?? crypto.randomUUID(),
@@ -225,7 +247,7 @@ function Bubble({ message }: { message: Message }) {
   return (
     <div className={cn("flex flex-col msg-in", isUser ? "items-end" : "items-start")}>
       <div className={cn(
-        "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap",
+        "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
         isUser
           ? [
               "bg-gradient-to-b from-primary/30 to-primary/[0.18]",
@@ -242,9 +264,9 @@ function Bubble({ message }: { message: Message }) {
       )}>
         {message.streaming && !message.text
           ? <span className="dot-bounce flex gap-1 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-current" /><span className="w-1.5 h-1.5 rounded-full bg-current" /><span className="w-1.5 h-1.5 rounded-full bg-current" /></span>
-          : message.text
+          : <MarkdownContent content={message.text} />
         }
-        {message.streaming && message.text && <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
+        {message.streaming && message.text && <span className="inline-block w-1.5 h-3.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
       </div>
       {!(message.streaming && !message.text) && (
         <span className="text-[10px] mt-1 px-1 select-none text-foreground/25">{time}</span>
