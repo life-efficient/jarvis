@@ -74,8 +74,8 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
         setBusy(true)
         setMessages(prev => {
           const last = prev[prev.length - 1]
-          if (last?.role === "assistant" && last?.streaming && last?.id === runId) {
-            return [...prev.slice(0, -1), { ...last, text: last.text + text }]
+          if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
+            return [...prev.slice(0, -1), { ...last, id: runId as string, text: last.text + text }]
           }
           return [...prev, {
             id: runId as string ?? crypto.randomUUID(),
@@ -120,12 +120,10 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
   function send() {
     const text = input.trim()
     if (!text || busy) return
-    setMessages(prev => [...prev, {
-      id: crypto.randomUUID(),
-      role: "user",
-      text,
-      ts: new Date(),
-    }])
+    setMessages(prev => [...prev,
+      { id: crypto.randomUUID(), role: "user", text, ts: new Date() },
+      { id: "pending", role: "assistant", text: "", ts: new Date(), streaming: true },
+    ])
     setInput("")
     setBusy(true)
     sendRPC("chat.send", {
@@ -242,10 +240,15 @@ function Bubble({ message }: { message: Message }) {
               "shadow-[0_1px_6px_rgba(0,0,0,0.2)]",
             ]
       )}>
-        {message.text}
-        {message.streaming && <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
+        {message.streaming && !message.text
+          ? <span className="dot-bounce flex gap-1 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-current" /><span className="w-1.5 h-1.5 rounded-full bg-current" /><span className="w-1.5 h-1.5 rounded-full bg-current" /></span>
+          : message.text
+        }
+        {message.streaming && message.text && <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
       </div>
-      <span className="text-[10px] mt-1 px-1 select-none text-foreground/25">{time}</span>
+      {!(message.streaming && !message.text) && (
+        <span className="text-[10px] mt-1 px-1 select-none text-foreground/25">{time}</span>
+      )}
     </div>
   )
 }
