@@ -52,8 +52,13 @@ export function PersonalityView({ agent, saving, updateIdentity, events, sendRPC
   return (
     <div className="relative h-full">
       {/* Full-width form */}
-      <div className="h-full overflow-y-auto px-8 py-8">
-        <div className="max-w-sm space-y-6">
+      <div className="h-full overflow-y-auto px-8 py-8 md:pr-[27rem]">
+        <div className="max-w-sm mx-auto space-y-8">
+
+          <div className="space-y-1">
+            <h1 className="text-xl font-semibold text-foreground">Personality</h1>
+            <p className="text-sm text-muted-foreground">Customise how {agent.name} thinks, talks, and shows up.</p>
+          </div>
 
           <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
