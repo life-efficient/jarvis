@@ -89,7 +89,7 @@ export default function App() {
         <div className="flex-1 min-w-0">
           {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} agentName={agent.name} contentClassName="max-w-2xl mx-auto" suggestions={CHAT_SUGGESTIONS} />}
           {view === "channels"    && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
-          {view === "skills"      && <SkillsView sendRPC={sendRPC} />}
+          {view === "skills"      && <SkillsView sendRPC={sendRPC} events={events} agentName={agent.name} />}
           {view === "schedule"    && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
           {view === "appearance"  && <ThemeView />}
           {view === "personality" && <PersonalityView agent={agent} saving={saving} updateIdentity={updateIdentity} events={events} sendRPC={sendRPC} />}

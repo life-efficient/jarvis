@@ -14,7 +14,8 @@ import {
   si1password, siImessage, siApple, siMarkdown,
 } from "simple-icons"
 import { cn } from "@/lib/utils"
-import type { SendRPC } from "@/hooks/useGatewayWS"
+import type { GatewayEvent, SendRPC } from "@/hooks/useGatewayWS"
+import { ChatView, type Suggestion } from "@/components/ChatView"
 
 interface BrandDef {
   path: string
@@ -198,11 +199,57 @@ function SkillCard({ skill, selected, onClick }: SkillCardProps) {
   )
 }
 
-interface SkillsViewProps {
-  sendRPC: SendRPC
+function buildSystemPrompt(skill: SkillEntry): string {
+  const statusText = skill.disabled
+    ? "disabled"
+    : skill.eligible
+      ? "enabled and ready to use"
+      : "enabled but needs setup (not yet configured)"
+  return `You are embedded in the Skills page of this agent's control panel. The user is currently viewing a specific skill:
+
+Name: ${skill.name}
+${skill.description ? `Description: ${skill.description}` : ""}
+Status: ${statusText}
+${skill.always ? "This skill is always-on and cannot be disabled." : ""}
+${skill.bundled ? "This is a bundled skill." : ""}
+${skill.homepage ? `Homepage / docs: ${skill.homepage}` : ""}
+Base directory: ${skill.baseDir}
+
+Help the user understand what this skill does, get it set up, or troubleshoot problems with it. Be concise and practical.`
 }
 
-export function SkillsView({ sendRPC }: SkillsViewProps) {
+function buildSuggestions(skill: SkillEntry): Suggestion[] {
+  const suggestions: Suggestion[] = [
+    {
+      label: "Explain what this does",
+      prompt: `What does the "${skill.name}" skill do and what can I use it for?`,
+    },
+  ]
+  if (!skill.eligible && !skill.disabled) {
+    suggestions.push({
+      label: "Help me set this up",
+      prompt: `I need help setting up the "${skill.name}" skill. What do I need to configure?`,
+    })
+  }
+  suggestions.push(
+    skill.disabled
+      ? { label: "Enable this",  prompt: `Please enable the "${skill.name}" skill.` }
+      : { label: "Disable this", prompt: `Please disable the "${skill.name}" skill.` }
+  )
+  suggestions.push({
+    label: "Help fix this",
+    prompt: `Something seems wrong with the "${skill.name}" skill — can you help me diagnose and fix it?`,
+  })
+  return suggestions
+}
+
+interface SkillsViewProps {
+  sendRPC: SendRPC
+  events: GatewayEvent[]
+  agentName: string
+}
+
+export function SkillsView({ sendRPC, events, agentName }: SkillsViewProps) {
   const [skills, setSkills] = useState<SkillEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -252,182 +299,187 @@ export function SkillsView({ sendRPC }: SkillsViewProps) {
     })
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="relative h-full">
 
-      {/* App grid panel */}
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/* Scrollable grid */}
+      <div className="h-full flex flex-col overflow-hidden">
 
         {/* Search + filter header */}
-        <div className="pt-5 pb-4 shrink-0">
-        <div className="max-w-2xl mx-auto px-6 space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={14} />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search skills…"
-              className={cn(
-                "w-full bg-foreground/[0.05] border border-foreground/[0.08] rounded-xl",
-                "pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground",
-                "outline-none focus:border-primary/30 transition-colors"
-              )}
-            />
-          </div>
-          <div className="flex gap-1.5 flex-wrap">
-            {FILTERS.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setFilter(f.id)}
+        <div className="pt-5 pb-4 shrink-0 transition-[padding] duration-300" style={{ paddingRight: selected ? "28rem" : undefined }}>
+          <div className="max-w-2xl mx-auto px-6 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" size={14} />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search skills…"
                 className={cn(
-                  "px-3 py-1 rounded-full text-sm font-medium transition-colors",
-                  filter === f.id
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                  "w-full bg-foreground/[0.05] border border-foreground/[0.08] rounded-xl",
+                  "pl-9 pr-8 py-2 text-sm text-foreground placeholder:text-muted-foreground",
+                  "outline-none focus:border-primary/30 transition-colors"
                 )}
-              >
-                {f.label}
-              </button>
-            ))}
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {FILTERS.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-sm font-medium transition-colors",
+                    filter === f.id
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
         </div>
 
         {/* Grid */}
-        <div className="flex-1 overflow-y-auto pb-8">
+        <div className="flex-1 overflow-y-auto pb-8 transition-[padding] duration-300" style={{ paddingRight: selected ? "28rem" : undefined }}>
           <div className="max-w-5xl mx-auto px-6">
-          {loading && (
-            <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-              Loading skills…
-            </div>
-          )}
-          {error && (
-            <div className="flex items-center justify-center h-32 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-          {!loading && !error && visible.length === 0 && (
-            <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-              No skills found.
-            </div>
-          )}
-          {!loading && !error && visible.length > 0 && (
-            <div
-              className="grid gap-3"
-              style={{ gridTemplateColumns: "repeat(7, 1fr)" }}
-            >
-              {visible.map(skill => (
-                <SkillCard
-                  key={skill.skillKey}
-                  skill={skill}
-                  selected={selected?.skillKey === skill.skillKey}
-                  onClick={() => setSelected(prev => prev?.skillKey === skill.skillKey ? null : skill)}
-                />
-              ))}
-            </div>
-          )}
+            {loading && (
+              <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">Loading skills…</div>
+            )}
+            {error && (
+              <div className="flex items-center justify-center h-32 text-sm text-destructive">{error}</div>
+            )}
+            {!loading && !error && visible.length === 0 && (
+              <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">No skills found.</div>
+            )}
+            {!loading && !error && visible.length > 0 && (
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(7, 1fr)" }}>
+                {visible.map(skill => (
+                  <SkillCard
+                    key={skill.skillKey}
+                    skill={skill}
+                    selected={selected?.skillKey === skill.skillKey}
+                    onClick={() => setSelected(prev => prev?.skillKey === skill.skillKey ? null : skill)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Detail panel */}
-      <div className={cn(
-        "flex-none overflow-hidden border-l border-foreground/[0.07]",
-        "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-        selected ? "w-80" : "w-0"
-      )}>
-        <div className="w-80 h-full flex flex-col">
-          {selected && (() => {
-            const brand = getBrand(selected.name, selected.skillKey)
-            const [from, to] = getGradient(selected.skillKey)
-            const Icon = getSkillIcon(selected.name, selected.skillKey)
-            const status = statusLabel(selected)
-            const toggling = togglingKey === selected.skillKey
-            return (
-              <>
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-foreground/[0.07] shrink-0">
-                  <div
-                    style={brand
-                      ? { background: brand.color }
-                      : { background: `linear-gradient(145deg, ${from}, ${to})` }
-                    }
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0"
-                  >
-                    {brand ? (
-                      <svg viewBox="0 0 24 24" width={18} height={18} fill="white">
-                        <path d={brand.path} />
-                      </svg>
-                    ) : (
-                      <Icon size={18} className="text-white" />
-                    )}
-                  </div>
-                  <span className="flex-1 text-base font-semibold text-foreground truncate">
-                    {formatName(selected.name)}
+      {/* Floating detail + chat panel */}
+      {selected && (() => {
+        const brand = getBrand(selected.name, selected.skillKey)
+        const [from, to] = getGradient(selected.skillKey)
+        const Icon = getSkillIcon(selected.name, selected.skillKey)
+        const status = statusLabel(selected)
+        const toggling = togglingKey === selected.skillKey
+        return (
+          <div className={cn(
+            "hidden md:flex flex-col",
+            "absolute top-6 bottom-6 right-6",
+            "w-[26rem]",
+            "rounded-2xl border border-foreground/[0.10]",
+            "bg-background/80 backdrop-blur-xl",
+            "shadow-[0_8px_40px_rgba(0,0,0,0.22),0_2px_12px_rgba(0,0,0,0.15)]",
+            "overflow-hidden",
+          )}>
+            {/* Skill detail */}
+            <div className="shrink-0 border-b border-foreground/[0.07]">
+              <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+                <div
+                  style={brand
+                    ? { background: brand.color }
+                    : { background: `linear-gradient(145deg, ${from}, ${to})` }
+                  }
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md shrink-0"
+                >
+                  {brand ? (
+                    <svg viewBox="0 0 24 24" width={18} height={18} fill="white">
+                      <path d={brand.path} />
+                    </svg>
+                  ) : (
+                    <Icon size={18} className="text-white" />
+                  )}
+                </div>
+                <span className="flex-1 text-base font-semibold text-foreground truncate">
+                  {formatName(selected.name)}
+                </span>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="w-8 h-8 rounded-lg bg-foreground/[0.05] border border-foreground/[0.07] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="px-4 pb-4 space-y-2.5">
+                {selected.description && (
+                  <p className="text-sm text-foreground/60 leading-snug line-clamp-3">{selected.description}</p>
+                )}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", status.className)}>
+                    {status.label}
                   </span>
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="w-8 h-8 rounded-lg bg-foreground/[0.05] border border-foreground/[0.07] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-                  {selected.description && (
-                    <p className="text-sm text-foreground/70 leading-relaxed">{selected.description}</p>
+                  {selected.bundled && (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium text-muted-foreground bg-foreground/[0.06]">Bundled</span>
                   )}
-
-                  <div className="flex flex-wrap gap-2">
-                    <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", status.className)}>
-                      {status.label}
-                    </span>
-                    {selected.bundled && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium text-muted-foreground bg-foreground/[0.06]">
-                        Bundled
-                      </span>
-                    )}
-                    {selected.always && (
-                      <span className="text-xs px-2.5 py-1 rounded-full font-medium text-muted-foreground bg-foreground/[0.06]">
-                        Always on
-                      </span>
-                    )}
-                  </div>
-
+                  {selected.always && (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-medium text-muted-foreground bg-foreground/[0.06]">Always on</span>
+                  )}
                   {!selected.always && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-foreground/70">Enabled</span>
-                      <button
-                        onClick={e => void toggle(selected, e)}
-                        disabled={toggling}
-                        className={cn(
-                          "relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0",
-                          !selected.disabled ? "bg-primary/40" : "bg-foreground/[0.12]",
-                          toggling && "opacity-50"
-                        )}
-                      >
-                        <span className={cn(
-                          "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-sm",
-                          !selected.disabled ? "translate-x-5" : "translate-x-0.5"
-                        )} />
-                      </button>
-                    </div>
-                  )}
-
-                  {selected.homepage && (
-                    <a
-                      href={selected.homepage}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block text-sm text-primary/70 hover:text-primary transition-colors truncate"
+                    <button
+                      onClick={e => void toggle(selected, e)}
+                      disabled={toggling}
+                      className={cn(
+                        "relative w-10 h-5 rounded-full transition-colors duration-200 shrink-0 ml-auto",
+                        !selected.disabled ? "bg-primary/40" : "bg-foreground/[0.12]",
+                        toggling && "opacity-50"
+                      )}
                     >
-                      {selected.homepage}
-                    </a>
+                      <span className={cn(
+                        "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all duration-200 shadow-sm",
+                        !selected.disabled ? "left-[22px]" : "left-0.5"
+                      )} />
+                    </button>
                   )}
                 </div>
-              </>
-            )
-          })()}
-        </div>
-      </div>
+                {selected.homepage && (
+                  <a
+                    href={selected.homepage}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-xs text-primary/60 hover:text-primary transition-colors truncate"
+                  >
+                    {selected.homepage}
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Chat */}
+            <div className="flex-1 min-h-0">
+              <ChatView
+                key={selected.skillKey}
+                events={events}
+                sendRPC={sendRPC}
+                agentName={agentName}
+                sessionKey={`agent:main:skill-${selected.skillKey}`}
+                systemPrompt={buildSystemPrompt(selected)}
+                suggestions={buildSuggestions(selected)}
+              />
+            </div>
+          </div>
+        )
+      })()}
 
     </div>
   )
