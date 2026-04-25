@@ -12,6 +12,7 @@ interface Message {
   text: string
   ts: Date
   streaming?: boolean
+  interrupted?: boolean
   toolName?: string
   toolArgs?: unknown
   toolResult?: unknown
@@ -95,13 +96,6 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
           if (phase === "end" || phase === "error") {
             currentRunId.current = null
             setBusy(false)
-            setMessages(prev => {
-              const last = prev[prev.length - 1]
-              if (last?.role === "assistant" && last?.streaming && !last?.text) {
-                return prev.slice(0, -1)
-              }
-              return prev
-            })
           }
           continue
         }
@@ -122,11 +116,7 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
               toolArgs: data.args,
               toolPhase: "running",
             }
-            setMessages(prev => {
-              const pendingIdx = prev.findIndex(m => m.id === "pending" || (m.role === "assistant" && m.streaming))
-              if (pendingIdx === -1) return [...prev, toolMsg]
-              return [...prev.slice(0, pendingIdx), toolMsg, ...prev.slice(pendingIdx)]
-            })
+            setMessages(prev => [...prev, toolMsg])
           } else if (phase === "result") {
             setMessages(prev => prev.map(m =>
               m.id === toolCallId ? { ...m, toolResult: data.result, toolPhase: "done" } : m
@@ -144,8 +134,8 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
           setBusy(true)
           setMessages(prev => {
             const last = prev[prev.length - 1]
-            if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
-              return [...prev.slice(0, -1), { ...last, id: runId, text }]
+            if (last?.role === "assistant" && last?.streaming && last?.id === runId) {
+              return [...prev.slice(0, -1), { ...last, text }]
             }
             return [...prev, { id: runId, role: "assistant", text, ts: new Date(), streaming: true }]
           })
@@ -165,10 +155,10 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
         setBusy(true)
         setMessages(prev => {
           const last = prev[prev.length - 1]
-          if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
+          if (last?.role === "assistant" && last?.streaming && last?.id === runId) {
             return [...prev.slice(0, -1), { ...last, id: runId as string, text }]
           }
-          return [...prev, { id: runId as string ?? crypto.randomUUID(), role: "assistant", text, ts: new Date(), streaming: true }]
+          return [...prev, { id: (runId as string) ?? crypto.randomUUID(), role: "assistant", text, ts: new Date(), streaming: true }]
         })
       } else if (state === "final") {
         currentRunId.current = null
@@ -181,7 +171,17 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
           if (text) return [...prev, { id: runId as string ?? crypto.randomUUID(), role: "assistant", text, ts: new Date() }]
           return prev
         })
-      } else if (state === "aborted" || state === "error") {
+      } else if (state === "aborted") {
+        currentRunId.current = null
+        setBusy(false)
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          if (last?.role === "assistant" && last?.streaming) {
+            return [...prev.slice(0, -1), { ...last, streaming: false, interrupted: true }]
+          }
+          return prev
+        })
+      } else if (state === "error") {
         currentRunId.current = null
         setBusy(false)
         setMessages(prev => {
@@ -208,7 +208,6 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
     if (!text || busy) return
     setMessages(prev => [...prev,
       { id: crypto.randomUUID(), role: "user", text, ts: new Date() },
-      { id: "pending", role: "assistant", text: "", ts: new Date(), streaming: true },
     ])
     setInput("")
     setBusy(true)
@@ -218,6 +217,9 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
       idempotencyKey: crypto.randomUUID(),
     })
   }
+
+  const lastMsg = messages[messages.length - 1]
+  const showBusyDots = busy && !(lastMsg?.role === "assistant" && lastMsg?.streaming)
 
   return (
     <div className="flex flex-col h-full">
@@ -232,6 +234,15 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
             m.role === "tool"
               ? <ToolCallBubble key={m.id} message={m} />
               : <Bubble key={m.id} message={m} />
+          )}
+          {showBusyDots && (
+            <div className="flex items-start msg-in">
+              <span className="dot-bounce flex gap-1 px-3.5 py-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+              </span>
+            </div>
           )}
           <div ref={bottomRef} />
         </div>
@@ -376,6 +387,14 @@ function ToolCallBubble({ message }: { message: Message }) {
 function Bubble({ message }: { message: Message }) {
   const isUser = message.role === "user"
   const time = message.ts.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+
+  if (message.interrupted && !message.text) {
+    return (
+      <div className="flex justify-start msg-in">
+        <span className="text-xs text-foreground/25 italic px-1">You interrupted me.</span>
+      </div>
+    )
+  }
   return (
     <div className={cn("flex flex-col msg-in", isUser ? "items-end" : "items-start")}>
       <div className={cn(
@@ -401,7 +420,12 @@ function Bubble({ message }: { message: Message }) {
         {message.streaming && message.text && <span className="inline-block w-1.5 h-3.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
       </div>
       {!(message.streaming && !message.text) && (
-        <span className="text-[10px] mt-1 px-1 select-none text-foreground/25">{time}</span>
+        <div className="flex items-center gap-1.5 mt-1 px-1">
+          <span className="text-[10px] select-none text-foreground/25">{time}</span>
+          {message.interrupted && (
+            <span className="text-[10px] select-none text-foreground/20">· stopped</span>
+          )}
+        </div>
       )}
     </div>
   )
