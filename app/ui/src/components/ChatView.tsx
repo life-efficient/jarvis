@@ -47,6 +47,11 @@ function formatToolName(name: string): string {
   return labels[name] ?? name.replace(/_/g, " ")
 }
 
+export interface Suggestion {
+  label: string
+  prompt: string
+}
+
 interface ChatViewProps {
   events: GatewayEvent[]
   sendRPC: (method: string, params: unknown) => void
@@ -54,9 +59,10 @@ interface ChatViewProps {
   sessionKey?: string
   systemPrompt?: string
   contentClassName?: string
+  suggestions?: Suggestion[]
 }
 
-export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:main", systemPrompt, contentClassName }: ChatViewProps) {
+export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:main", systemPrompt, contentClassName, suggestions }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
@@ -67,6 +73,8 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
   const atBottom = useRef(true)
   const seenEventCount = useRef(0)
   const promptSent = useRef(false)
+  const [suggestionsHiding, setSuggestionsHiding] = useState(false)
+  const [suggestionsGone, setSuggestionsGone] = useState(false)
 
   function onScroll() {
     const el = scrollRef.current
@@ -80,6 +88,14 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
   useEffect(() => {
     if (atBottom.current) bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    if (messages.length > 0 && !suggestionsGone) {
+      setSuggestionsHiding(true)
+      const t = setTimeout(() => setSuggestionsGone(true), 250)
+      return () => clearTimeout(t)
+    }
+  }, [messages.length])
 
   useEffect(() => {
     if (events.length <= seenEventCount.current) return
@@ -209,8 +225,7 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
     })
   }
 
-  function send() {
-    const text = input.trim()
+  function sendText(text: string) {
     if (!text || busy) return
     setMessages(prev => [...prev,
       { id: crypto.randomUUID(), role: "user", text, ts: new Date() },
@@ -229,6 +244,10 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
     })
   }
 
+  function send() {
+    sendText(input.trim())
+  }
+
   const lastMsg = messages[messages.length - 1]
   const showBusyDots = busy && !(lastMsg?.role === "assistant" && lastMsg?.streaming)
 
@@ -238,10 +257,31 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
       <div className="relative flex-1 min-h-0">
         <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto py-6">
           <div className="space-y-5 px-4">
-            {messages.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground mt-16">
-                Say something to get started.
-              </p>
+            {messages.length === 0 && !suggestionsGone && (
+              <div className={cn(
+                "flex flex-col items-center gap-4 mt-16 transition-all duration-200",
+                suggestionsHiding ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+              )}>
+                {(!suggestions || suggestions.length === 0) && (
+                  <p className="text-center text-sm text-muted-foreground">
+                    Say something to get started.
+                  </p>
+                )}
+                {suggestions && suggestions.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-2 px-2">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={s.label}
+                        onClick={() => sendText(s.prompt)}
+                        style={{ animationDelay: `${i * 60}ms` }}
+                        className="msg-in px-3.5 py-1.5 rounded-full border border-foreground/[0.12] bg-foreground/[0.04] text-sm text-foreground/60 hover:text-foreground hover:border-foreground/[0.22] hover:bg-foreground/[0.07] transition-colors cursor-pointer"
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {messages.map(m =>
               m.role === "tool"
