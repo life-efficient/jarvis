@@ -16,16 +16,16 @@ export type View = "chat" | "channels" | "skills" | "schedule" | "appearance" | 
 
 const CHAT_SUGGESTIONS: Suggestion[] = [
   {
-    label: "Brief me",
-    prompt: "Give me a briefing on what's happening today — tasks, anything time-sensitive, and what I should know.",
+    label: "What's next on the agenda?",
+    prompt: "What's next on my agenda? Check my tasks, any scheduled items, and tell me what I should be focused on right now.",
   },
   {
-    label: "What can you do?",
-    prompt: "Give me a quick tour of your capabilities — skills you have available, what you can help with, and how to get the most out of you.",
+    label: "Recap the last week",
+    prompt: "Give me a recap of the last week — what got done, what's in progress, anything notable that happened, and what's carried over.",
   },
   {
-    label: "Search my brain",
-    prompt: "Search my brain and summarise what you know so far — key topics, people, and projects.",
+    label: "Let's get in sync",
+    prompt: "Let's do a quick sync. Ask me one question at a time about what's new — updates on projects, any new priorities, blockers, or things I want to remember. After each answer, capture it and ask the next question. Keep going until I say we're done.",
   },
 ]
 
