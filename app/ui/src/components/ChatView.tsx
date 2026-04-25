@@ -309,14 +309,18 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
       {/* Top fade — softened so background accent shows through */}
       <div ref={topFadeRef} style={{ height: 0 }} className="pointer-events-none absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background/75 to-transparent" />
 
-      {/* Floating input — mask gradient fades blur in from top, eliminating hard edge */}
+      {/* Frosted glass overlay — masked blur behind the input, pointer-events-none */}
       <div
         style={{
-          maskImage: "linear-gradient(to bottom, transparent, black 45%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent, black 45%)",
+          maskImage: "linear-gradient(to bottom, transparent, black 45%), linear-gradient(to right, transparent, black 3%, black 97%, transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent, black 45%), linear-gradient(to right, transparent, black 3%, black 97%, transparent)",
+          maskComposite: "intersect",
+          WebkitMaskComposite: "source-in",
         }}
-        className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-5 pt-16 backdrop-blur-md bg-gradient-to-t from-background/20 to-transparent"
-      >
+        className="pointer-events-none absolute bottom-0 -left-8 -right-8 z-20 h-36 backdrop-blur-xl bg-gradient-to-t from-background/75 to-transparent"
+      />
+      {/* Input — above the overlay, never masked */}
+      <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-5 pt-2">
         <InputBox
           value={input}
           onChange={setInput}
