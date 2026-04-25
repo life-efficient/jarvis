@@ -3,8 +3,9 @@ import { ChevronLeft, Grip, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useGatewayWS, type ConnectionStatus } from "@/hooks/useGatewayWS"
 import { useTheme } from "@/hooks/useTheme"
+import { useDynamicFavicon } from "@/hooks/useDynamicFavicon"
 import { useAgentInfo } from "@/hooks/useAgentInfo"
-import { ChatView } from "@/components/ChatView"
+import { ChatView, type Suggestion } from "@/components/ChatView"
 import { EventsView } from "@/components/EventsView"
 import { ThemeView } from "@/components/ThemeView"
 import { SkillsView } from "@/components/SkillsView"
@@ -12,6 +13,21 @@ import { PersonalityView } from "@/components/PersonalityView"
 import { MenuOverlay } from "@/components/MenuOverlay"
 
 export type View = "chat" | "channels" | "skills" | "schedule" | "appearance" | "personality"
+
+const CHAT_SUGGESTIONS: Suggestion[] = [
+  {
+    label: "Brief me",
+    prompt: "Give me a briefing on what's happening today — tasks, anything time-sensitive, and what I should know.",
+  },
+  {
+    label: "What can you do?",
+    prompt: "Give me a quick tour of your capabilities — skills you have available, what you can help with, and how to get the most out of you.",
+  },
+  {
+    label: "Search my brain",
+    prompt: "Search my brain and summarise what you know so far — key topics, people, and projects.",
+  },
+]
 
 const activityColor: Record<ConnectionStatus, string> = {
   connecting:   "text-yellow-400/60",
@@ -23,6 +39,7 @@ const activityColor: Record<ConnectionStatus, string> = {
 export default function App() {
   const { events, status, sendRPC } = useGatewayWS()
   useTheme()
+  useDynamicFavicon()
   const { agent, saving, updateIdentity } = useAgentInfo(sendRPC, status)
 
   useEffect(() => { document.title = agent.name }, [agent.name])
@@ -70,7 +87,7 @@ export default function App() {
 
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0">
-          {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} agentName={agent.name} contentClassName="max-w-2xl mx-auto" />}
+          {view === "chat"        && <ChatView events={events} sendRPC={sendRPC} agentName={agent.name} contentClassName="max-w-2xl mx-auto" suggestions={CHAT_SUGGESTIONS} />}
           {view === "channels"    && <PlaceholderView title="Channels" description="WhatsApp, Telegram, and more — coming soon." />}
           {view === "skills"      && <SkillsView sendRPC={sendRPC} />}
           {view === "schedule"    && <PlaceholderView title="Schedule & Reminders" description="Recurring tasks and reminders — coming soon." />}
