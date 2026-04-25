@@ -50,9 +50,9 @@ export function PersonalityView({ agent, saving, updateIdentity, events, sendRPC
   }
 
   return (
-    <div className="flex h-full">
-      {/* Primary form — takes all available space */}
-      <div className="flex-1 min-w-0 overflow-y-auto px-8 py-8">
+    <div className="relative h-full">
+      {/* Full-width form */}
+      <div className="h-full overflow-y-auto px-8 py-8">
         <div className="max-w-sm space-y-6">
 
           <div className="space-y-2">
@@ -92,10 +92,18 @@ export function PersonalityView({ agent, saving, updateIdentity, events, sendRPC
         </div>
       </div>
 
-      {/* Chat aside — hidden on mobile, fixed width on desktop */}
-      <div className="hidden md:flex flex-col w-80 shrink-0 border-l border-foreground/[0.06]">
-        <div className="px-4 py-3 border-b border-foreground/[0.06] shrink-0">
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+      {/* Floating chat panel — hidden on mobile */}
+      <div className={cn(
+        "hidden md:flex flex-col",
+        "absolute top-6 bottom-6 right-6",
+        "w-96",
+        "rounded-2xl border border-foreground/[0.10]",
+        "bg-background/80 backdrop-blur-xl",
+        "shadow-[0_8px_40px_rgba(0,0,0,0.22),0_2px_12px_rgba(0,0,0,0.15)]",
+        "overflow-hidden",
+      )}>
+        <div className="px-4 py-3 border-b border-foreground/[0.07] shrink-0">
+          <p className="text-[11px] font-medium text-muted-foreground">
             Ask {agent.name} to make changes
           </p>
         </div>

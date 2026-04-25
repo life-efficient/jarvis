@@ -257,8 +257,8 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
                 </span>
               </div>
             )}
-            <div ref={bottomRef} />
           </div>
+          <div ref={bottomRef} />
         </div>
         {/* Fade at top — height driven by scroll position, grows from 0 at the top limit */}
         <div ref={topFadeRef} style={{ height: 0 }} className="pointer-events-none absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent" />
