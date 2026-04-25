@@ -4,8 +4,6 @@ import { cn } from "@/lib/utils"
 import type { GatewayEvent } from "@/hooks/useGatewayWS"
 import { MarkdownContent } from "@/components/MarkdownContent"
 
-const SESSION_KEY = "agent:main:main"
-
 interface Message {
   id: string
   role: "user" | "assistant" | "tool"
@@ -53,22 +51,30 @@ interface ChatViewProps {
   events: GatewayEvent[]
   sendRPC: (method: string, params: unknown) => void
   agentName: string
+  sessionKey?: string
+  systemPrompt?: string
+  contentClassName?: string
 }
 
-export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
+export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:main", systemPrompt, contentClassName }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const currentRunId = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const topFadeRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const seenEventCount = useRef(0)
+  const promptSent = useRef(false)
 
   function onScroll() {
     const el = scrollRef.current
     if (!el) return
     atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+    if (topFadeRef.current) {
+      topFadeRef.current.style.height = `${Math.min(el.scrollTop, 64)}px`
+    }
   }
 
   useEffect(() => {
@@ -198,7 +204,7 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
 
   function stop() {
     sendRPC("chat.abort", {
-      sessionKey: SESSION_KEY,
+      sessionKey: sessionKey,
       ...(currentRunId.current ? { runId: currentRunId.current } : {}),
     })
   }
@@ -211,9 +217,14 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
     ])
     setInput("")
     setBusy(true)
+    let message = text
+    if (systemPrompt && !promptSent.current) {
+      promptSent.current = true
+      message = `${systemPrompt}\n\n${text}`
+    }
     sendRPC("chat.send", {
-      sessionKey: SESSION_KEY,
-      message: text,
+      sessionKey: sessionKey,
+      message,
       idempotencyKey: crypto.randomUUID(),
     })
   }
@@ -222,43 +233,48 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
   const showBusyDots = busy && !(lastMsg?.role === "assistant" && lastMsg?.streaming)
 
   return (
-    <div className="flex flex-col h-full">
-      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto py-6">
-        <div className="max-w-2xl mx-auto space-y-5">
-          {messages.length === 0 && (
-            <p className="text-center text-sm text-muted-foreground mt-16">
-              Say something to get started.
-            </p>
-          )}
-          {messages.map(m =>
-            m.role === "tool"
-              ? <ToolCallBubble key={m.id} message={m} />
-              : <Bubble key={m.id} message={m} />
-          )}
-          {showBusyDots && (
-            <div className="flex items-start msg-in">
-              <span className="dot-bounce flex gap-1 px-3.5 py-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
-                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
-                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
-              </span>
-            </div>
-          )}
-          <div ref={bottomRef} />
+    <div className={cn("flex flex-col h-full", contentClassName)}>
+      {/* Scroll area with fade mask at the bottom edge */}
+      <div className="relative flex-1 min-h-0">
+        <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto py-6">
+          <div className="space-y-5 px-4">
+            {messages.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground mt-16">
+                Say something to get started.
+              </p>
+            )}
+            {messages.map(m =>
+              m.role === "tool"
+                ? <ToolCallBubble key={m.id} message={m} />
+                : <Bubble key={m.id} message={m} />
+            )}
+            {showBusyDots && (
+              <div className="flex items-start msg-in">
+                <span className="dot-bounce flex gap-1 px-3.5 py-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                </span>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
         </div>
+        {/* Fade at top — height driven by scroll position, grows from 0 at the top limit */}
+        <div ref={topFadeRef} style={{ height: 0 }} className="pointer-events-none absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent" />
+        {/* Fade at bottom */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-16 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      <div className="px-4 pb-5 pt-2">
-        <div className="max-w-2xl mx-auto">
-          <InputBox
-            value={input}
-            onChange={setInput}
-            onSend={send}
-            onStop={stop}
-            placeholder={`Message ${agentName}…`}
-            busy={busy}
-          />
-        </div>
+      <div className="px-4 pb-5 pt-2 shrink-0">
+        <InputBox
+          value={input}
+          onChange={setInput}
+          onSend={send}
+          onStop={stop}
+          placeholder={`Message ${agentName}…`}
+          busy={busy}
+        />
       </div>
     </div>
   )
