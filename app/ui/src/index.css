@@ -51,12 +51,12 @@
   * { @apply border-border; }
   *:focus { outline: none; }
   *:focus-visible { outline: none; }
-  html { height: 100%; }
+  html, body { height: 100%; overflow: hidden; }
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
-    min-height: 100%;
   }
+  #root { height: 100%; overflow: hidden; }
 }
 
 /* ── Tiptap markdown bubble styles ── */

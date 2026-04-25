@@ -70,7 +70,6 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const topFadeRef = useRef<HTMLDivElement>(null)
-  const bottomFadeRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const seenEventCount = useRef(0)
   const promptSent = useRef(false)
@@ -84,9 +83,6 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
     atBottom.current = distFromBottom < 60
     if (topFadeRef.current) {
       topFadeRef.current.style.height = `${Math.min(el.scrollTop, 64)}px`
-    }
-    if (bottomFadeRef.current) {
-      bottomFadeRef.current.style.opacity = atBottom.current ? "0" : "1"
     }
   }
 
@@ -143,7 +139,12 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
               toolArgs: data.args,
               toolPhase: "running",
             }
-            setMessages(prev => [...prev, toolMsg])
+            setMessages(prev => {
+              const settled = prev.map(m =>
+                m.role === "assistant" && m.streaming ? { ...m, streaming: false } : m
+              )
+              return [...settled, toolMsg]
+            })
           } else if (phase === "result") {
             setMessages(prev => prev.map(m =>
               m.id === toolCallId ? { ...m, toolResult: data.result, toolPhase: "done" } : m
@@ -257,61 +258,65 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
   const showBusyDots = busy && !(lastMsg?.role === "assistant" && lastMsg?.streaming)
 
   return (
-    <div className={cn("flex flex-col h-full", contentClassName)}>
-      {/* Scroll area with fade mask at the bottom edge */}
-      <div className="relative flex-1 min-h-0">
-        <div ref={scrollRef} onScroll={onScroll} className="h-full overflow-y-auto py-6">
-          <div className="space-y-5 px-4">
-            {messages.length === 0 && !suggestionsGone && (
-              <div className={cn(
-                "flex flex-col items-center gap-4 mt-16 transition-all duration-200",
-                suggestionsHiding ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
-              )}>
-                {(!suggestions || suggestions.length === 0) && (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Say something to get started.
-                  </p>
-                )}
-                {suggestions && suggestions.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-2 px-2">
-                    {suggestions.map((s, i) => (
-                      <button
-                        key={s.label}
-                        onClick={() => sendText(s.prompt)}
-                        style={{ animationDelay: `${i * 60}ms` }}
-                        className="msg-in px-3.5 py-1.5 rounded-full border border-foreground/[0.12] bg-foreground/[0.04] text-sm text-foreground/60 hover:text-foreground hover:border-foreground/[0.22] hover:bg-foreground/[0.07] transition-colors cursor-pointer"
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {messages.map(m =>
-              m.role === "tool"
-                ? <ToolCallBubble key={m.id} message={m} />
-                : <Bubble key={m.id} message={m} />
-            )}
-            {showBusyDots && (
-              <div className="flex items-start msg-in">
-                <span className="dot-bounce flex gap-1 px-3.5 py-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
-                </span>
-              </div>
-            )}
-          </div>
-          <div ref={bottomRef} />
+    <div className={cn("relative h-full", contentClassName)}>
+      {/* Scroll area — fills full height, bottom padding reserves space for floating input */}
+      <div ref={scrollRef} onScroll={onScroll} className="absolute inset-0 overflow-y-auto py-6 pb-36">
+        <div className="space-y-5 px-4">
+          {messages.length === 0 && !suggestionsGone && (
+            <div className={cn(
+              "flex flex-col items-center gap-4 mt-16 transition-all duration-200",
+              suggestionsHiding ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+            )}>
+              {(!suggestions || suggestions.length === 0) && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Say something to get started.
+                </p>
+              )}
+              {suggestions && suggestions.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-2 px-2">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s.label}
+                      onClick={() => sendText(s.prompt)}
+                      style={{ animationDelay: `${i * 60}ms` }}
+                      className="msg-in px-3.5 py-1.5 rounded-full border border-foreground/[0.12] bg-foreground/[0.04] text-sm text-foreground/60 hover:text-foreground hover:border-foreground/[0.22] hover:bg-foreground/[0.07] transition-colors cursor-pointer"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {messages.map(m =>
+            m.role === "tool"
+              ? <ToolCallBubble key={m.id} message={m} />
+              : <Bubble key={m.id} message={m} />
+          )}
+          {showBusyDots && (
+            <div className="flex items-start msg-in">
+              <span className="dot-bounce flex gap-1 px-3.5 py-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/40" />
+              </span>
+            </div>
+          )}
         </div>
-        {/* Fade at top — height driven by scroll position, grows from 0 at the top limit */}
-        <div ref={topFadeRef} style={{ height: 0 }} className="pointer-events-none absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent" />
-        {/* Fade at bottom — hidden when at bottom, fades in as you scroll up */}
-        <div ref={bottomFadeRef} style={{ opacity: 0 }} className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-16 backdrop-blur-[2px] bg-gradient-to-t from-background/60 to-transparent transition-opacity duration-300" />
+        <div ref={bottomRef} />
       </div>
 
-      <div className="px-4 pb-5 pt-2 shrink-0">
+      {/* Top fade — softened so background accent shows through */}
+      <div ref={topFadeRef} style={{ height: 0 }} className="pointer-events-none absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background/75 to-transparent" />
+
+      {/* Floating input — mask gradient fades blur in from top, eliminating hard edge */}
+      <div
+        style={{
+          maskImage: "linear-gradient(to bottom, transparent, black 45%)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent, black 45%)",
+        }}
+        className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-5 pt-16 backdrop-blur-md bg-gradient-to-t from-background/20 to-transparent"
+      >
         <InputBox
           value={input}
           onChange={setInput}
@@ -478,7 +483,6 @@ function Bubble({ message }: { message: Message }) {
           ? <span className="dot-bounce flex gap-1 py-0.5"><span className="w-1.5 h-1.5 rounded-full bg-current" /><span className="w-1.5 h-1.5 rounded-full bg-current" /><span className="w-1.5 h-1.5 rounded-full bg-current" /></span>
           : <MarkdownContent content={message.text} />
         }
-        {message.streaming && message.text && <span className="inline-block w-1.5 h-3.5 bg-foreground/40 animate-pulse rounded-sm align-middle" />}
       </div>
       {!(message.streaming && !message.text) && (
         <div className="flex items-center gap-1.5 mt-1 px-1">
