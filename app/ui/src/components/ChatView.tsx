@@ -70,6 +70,7 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const topFadeRef = useRef<HTMLDivElement>(null)
+  const bottomFadeRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const seenEventCount = useRef(0)
   const promptSent = useRef(false)
@@ -79,9 +80,13 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
   function onScroll() {
     const el = scrollRef.current
     if (!el) return
-    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    atBottom.current = distFromBottom < 60
     if (topFadeRef.current) {
       topFadeRef.current.style.height = `${Math.min(el.scrollTop, 64)}px`
+    }
+    if (bottomFadeRef.current) {
+      bottomFadeRef.current.style.opacity = atBottom.current ? "0" : "1"
     }
   }
 
@@ -302,8 +307,8 @@ export function ChatView({ events, sendRPC, agentName, sessionKey = "agent:main:
         </div>
         {/* Fade at top — height driven by scroll position, grows from 0 at the top limit */}
         <div ref={topFadeRef} style={{ height: 0 }} className="pointer-events-none absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-background to-transparent" />
-        {/* Fade at bottom */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-16 bg-gradient-to-t from-background to-transparent" />
+        {/* Fade at bottom — hidden when at bottom, fades in as you scroll up */}
+        <div ref={bottomFadeRef} style={{ opacity: 0 }} className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-16 backdrop-blur-[2px] bg-gradient-to-t from-background/60 to-transparent transition-opacity duration-300" />
       </div>
 
       <div className="px-4 pb-5 pt-2 shrink-0">
