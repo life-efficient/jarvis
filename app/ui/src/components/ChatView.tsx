@@ -73,6 +73,9 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
         if (payload.stream !== "assistant" || !data?.text) continue
         const runId = payload.runId as string
         const text = data.text as string
+        // filter internal sentinel replies (NO, NO_REPLY) that the agent
+        // uses for tool decisions and should never appear in the chat UI
+        if (/^\s*(NO_REPLY|NO)\s*$/.test(text)) continue
         setBusy(true)
         setMessages(prev => {
           const last = prev[prev.length - 1]
