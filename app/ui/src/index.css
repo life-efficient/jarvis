@@ -66,6 +66,7 @@
 .markdown-content .tiptap > * + * { @apply mt-2; }
 
 .markdown-content .tiptap p { @apply leading-relaxed; }
+.markdown-content .tiptap > p:last-child:empty { display: none; }
 
 .markdown-content .tiptap h1 { @apply text-base font-bold mt-3 mb-1; }
 .markdown-content .tiptap h2 { @apply text-sm font-semibold mt-3 mb-1 text-foreground/90; }
