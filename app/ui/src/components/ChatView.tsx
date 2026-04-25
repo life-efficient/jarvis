@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { Send } from "lucide-react"
+import { Send, Square, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { GatewayEvent } from "@/hooks/useGatewayWS"
 import { MarkdownContent } from "@/components/MarkdownContent"
@@ -8,17 +8,20 @@ const SESSION_KEY = "agent:main:main"
 
 interface Message {
   id: string
-  role: "user" | "assistant"
+  role: "user" | "assistant" | "tool"
   text: string
   ts: Date
   streaming?: boolean
+  toolName?: string
+  toolArgs?: unknown
+  toolResult?: unknown
+  toolPhase?: "running" | "done"
 }
 
 function extractText(message: unknown): string {
   if (typeof message === "string") return message
   if (message && typeof message === "object") {
     const msg = message as Record<string, unknown>
-    // { role, content: [{ type: "text", text: "..." }] }
     if (Array.isArray(msg.content)) {
       return msg.content
         .filter((b: unknown) => (b as Record<string,unknown>)?.type === "text")
@@ -28,6 +31,21 @@ function extractText(message: unknown): string {
     if ("text" in msg) return String(msg.text)
   }
   return ""
+}
+
+function formatToolName(name: string): string {
+  const labels: Record<string, string> = {
+    bash: "Running command",
+    computer: "Using computer",
+    web_search: "Searching the web",
+    web_fetch: "Fetching page",
+    read_file: "Reading file",
+    write_file: "Writing file",
+    edit_file: "Editing file",
+    str_replace_editor: "Editing file",
+    task: "Running task",
+  }
+  return labels[name] ?? name.replace(/_/g, " ")
 }
 
 interface ChatViewProps {
@@ -40,6 +58,7 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
+  const currentRunId = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
@@ -55,7 +74,6 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
     if (atBottom.current) bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Process new chat.event frames as they arrive
   useEffect(() => {
     if (events.length <= seenEventCount.current) return
     const newEvents = events.slice(seenEventCount.current)
@@ -65,26 +83,74 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
       const frame = e.parsed as Record<string, unknown> | null
       if (frame?.type !== "event") continue
 
-      // agent events carry real-time streaming text
       if (frame.event === "agent") {
         const payload = frame.payload as Record<string, unknown> | null
         if (!payload) continue
         const data = payload.data as Record<string, unknown> | null
-        if (payload.stream !== "assistant" || !data?.text) continue
-        const runId = payload.runId as string
-        const text = data.text as string
-        // filter internal sentinel replies (NO, NO_REPLY) that the agent
-        // uses for tool decisions and should never appear in the chat UI
-        if (/^\s*(NO_REPLY|NO)\s*$/.test(text)) continue
-        setBusy(true)
-        setMessages(prev => {
-          const last = prev[prev.length - 1]
-          if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
-            return [...prev.slice(0, -1), { ...last, id: runId, text }]
+        if (!data) continue
+
+        // lifecycle end — clean up any stuck pending bubble and unblock input
+        if (payload.stream === "lifecycle") {
+          const phase = data?.phase as string | undefined
+          if (phase === "end" || phase === "error") {
+            currentRunId.current = null
+            setBusy(false)
+            setMessages(prev => {
+              const last = prev[prev.length - 1]
+              if (last?.role === "assistant" && last?.streaming && !last?.text) {
+                return prev.slice(0, -1)
+              }
+              return prev
+            })
           }
-          return [...prev, { id: runId, role: "assistant", text, ts: new Date(), streaming: true }]
-        })
-        continue
+          continue
+        }
+
+        // tool call events
+        if (payload.stream === "tool") {
+          const toolCallId = data.toolCallId as string
+          const name = (data.name as string | undefined) ?? "tool"
+          const phase = data.phase as string
+
+          if (phase === "start") {
+            const toolMsg: Message = {
+              id: toolCallId,
+              role: "tool",
+              text: "",
+              ts: new Date(),
+              toolName: name,
+              toolArgs: data.args,
+              toolPhase: "running",
+            }
+            setMessages(prev => {
+              const pendingIdx = prev.findIndex(m => m.id === "pending" || (m.role === "assistant" && m.streaming))
+              if (pendingIdx === -1) return [...prev, toolMsg]
+              return [...prev.slice(0, pendingIdx), toolMsg, ...prev.slice(pendingIdx)]
+            })
+          } else if (phase === "result") {
+            setMessages(prev => prev.map(m =>
+              m.id === toolCallId ? { ...m, toolResult: data.result, toolPhase: "done" } : m
+            ))
+          }
+          continue
+        }
+
+        // assistant streaming events
+        if (payload.stream === "assistant" && data.text) {
+          const runId = payload.runId as string
+          const text = data.text as string
+          if (/^\s*(NO_REPLY|NO)\s*$/.test(text)) continue
+          currentRunId.current = runId
+          setBusy(true)
+          setMessages(prev => {
+            const last = prev[prev.length - 1]
+            if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
+              return [...prev.slice(0, -1), { ...last, id: runId, text }]
+            }
+            return [...prev, { id: runId, role: "assistant", text, ts: new Date(), streaming: true }]
+          })
+          continue
+        }
       }
 
       if (frame.event !== "chat") continue
@@ -102,33 +168,21 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
           if (last?.role === "assistant" && last?.streaming && (last?.id === runId || last?.id === "pending")) {
             return [...prev.slice(0, -1), { ...last, id: runId as string, text }]
           }
-          return [...prev, {
-            id: runId as string ?? crypto.randomUUID(),
-            role: "assistant",
-            text,
-            ts: new Date(),
-            streaming: true,
-          }]
+          return [...prev, { id: runId as string ?? crypto.randomUUID(), role: "assistant", text, ts: new Date(), streaming: true }]
         })
       } else if (state === "final") {
+        currentRunId.current = null
         setBusy(false)
         setMessages(prev => {
           const last = prev[prev.length - 1]
           if (last?.role === "assistant" && last?.streaming) {
-            const finalText = text || last.text
-            return [...prev.slice(0, -1), { ...last, text: finalText, streaming: false }]
+            return [...prev.slice(0, -1), { ...last, text: text || last.text, streaming: false }]
           }
-          if (text) {
-            return [...prev, {
-              id: runId as string ?? crypto.randomUUID(),
-              role: "assistant",
-              text,
-              ts: new Date(),
-            }]
-          }
+          if (text) return [...prev, { id: runId as string ?? crypto.randomUUID(), role: "assistant", text, ts: new Date() }]
           return prev
         })
       } else if (state === "aborted" || state === "error") {
+        currentRunId.current = null
         setBusy(false)
         setMessages(prev => {
           const last = prev[prev.length - 1]
@@ -141,6 +195,13 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
       }
     }
   }, [events])
+
+  function stop() {
+    sendRPC("chat.abort", {
+      sessionKey: SESSION_KEY,
+      ...(currentRunId.current ? { runId: currentRunId.current } : {}),
+    })
+  }
 
   function send() {
     const text = input.trim()
@@ -167,7 +228,11 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
               Say something to get started.
             </p>
           )}
-          {messages.map(m => <Bubble key={m.id} message={m} />)}
+          {messages.map(m =>
+            m.role === "tool"
+              ? <ToolCallBubble key={m.id} message={m} />
+              : <Bubble key={m.id} message={m} />
+          )}
           <div ref={bottomRef} />
         </div>
       </div>
@@ -178,6 +243,7 @@ export function ChatView({ events, sendRPC, agentName }: ChatViewProps) {
             value={input}
             onChange={setInput}
             onSend={send}
+            onStop={stop}
             placeholder={`Message ${agentName}…`}
             busy={busy}
           />
@@ -191,11 +257,12 @@ interface InputBoxProps {
   value: string
   onChange: (v: string) => void
   onSend: () => void
+  onStop: () => void
   placeholder: string
   busy: boolean
 }
 
-function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps) {
+function InputBox({ value, onChange, onSend, onStop, placeholder, busy }: InputBoxProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -227,19 +294,81 @@ function InputBox({ value, onChange, onSend, placeholder, busy }: InputBoxProps)
           className="w-full bg-transparent resize-none outline-none text-sm text-foreground placeholder:text-muted-foreground leading-relaxed overflow-y-auto"
         />
       </div>
+      {busy ? (
+        <button
+          onClick={onStop}
+          className="shrink-0 self-end w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 bg-foreground/[0.09] border border-foreground/[0.12] text-foreground/60 hover:text-foreground hover:bg-foreground/[0.14]"
+          aria-label="Stop"
+        >
+          <Square size={11} fill="currentColor" />
+        </button>
+      ) : (
+        <button
+          onClick={onSend}
+          disabled={!value.trim()}
+          className={cn(
+            "shrink-0 self-end w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+            value.trim()
+              ? "bg-primary/20 text-primary scale-100"
+              : "bg-foreground/[0.07] text-muted-foreground scale-95"
+          )}
+          aria-label="Send"
+        >
+          <Send size={13} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ToolCallBubble({ message }: { message: Message }) {
+  const [expanded, setExpanded] = useState(false)
+  const isDone = message.toolPhase === "done"
+  const label = formatToolName(message.toolName ?? "tool")
+
+  return (
+    <div className="flex flex-col items-start gap-1 msg-in">
       <button
-        onClick={onSend}
-        disabled={!value.trim() || busy}
+        onClick={() => { if (isDone) setExpanded(v => !v) }}
         className={cn(
-          "shrink-0 self-end w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
-          value.trim() && !busy
-            ? "bg-primary/20 text-primary scale-100"
-            : "bg-foreground/[0.07] text-muted-foreground scale-95"
+          "flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs transition-all duration-500",
+          isDone
+            ? "border-foreground/[0.10] text-foreground/40 hover:text-foreground/60 hover:border-foreground/[0.18] cursor-pointer"
+            : "border-foreground/[0.07] cursor-default"
         )}
-        aria-label="Send"
       >
-        <Send size={13} />
+        <span className={cn(
+          "w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors duration-500",
+          isDone ? "bg-emerald-400/50" : "bg-amber-400/60 animate-pulse"
+        )} />
+        <span className={isDone ? undefined : "tool-shimmer"}>{label}</span>
+        {isDone && (
+          expanded
+            ? <ChevronUp size={10} className="opacity-40" />
+            : <ChevronDown size={10} className="opacity-40" />
+        )}
       </button>
+
+      {expanded && isDone && (
+        <div className="ml-1 text-xs font-mono bg-foreground/[0.04] border border-foreground/[0.08] rounded-xl p-3 space-y-3 max-w-sm w-full">
+          {message.toolArgs !== undefined && (
+            <div>
+              <div className="text-foreground/30 uppercase tracking-wider text-[9px] mb-1">input</div>
+              <pre className="text-foreground/50 whitespace-pre-wrap break-all leading-relaxed">
+                {JSON.stringify(message.toolArgs, null, 2)}
+              </pre>
+            </div>
+          )}
+          {message.toolResult !== undefined && (
+            <div>
+              <div className="text-foreground/30 uppercase tracking-wider text-[9px] mb-1">result</div>
+              <pre className="text-foreground/50 whitespace-pre-wrap break-all leading-relaxed max-h-48 overflow-y-auto">
+                {JSON.stringify(message.toolResult, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
