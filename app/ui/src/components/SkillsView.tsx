@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react"
 import {
-  X, Search, Globe, GitCommit, Rocket, Code2, FileText, Terminal,
+  X, Search, Globe, GitCommit, GitBranch, Rocket, Code2, FileText, Terminal,
   Layers, Palette, Shield, Zap, Activity, CheckSquare, MessageSquare,
   Bug, RotateCcw, BookMarked, ArrowUpCircle, TestTube, Wrench, Clock,
+  Brain, Camera, Database, Film, Image, Lightbulb, Users, Network,
+  BarChart, ScrollText, Wand2, Music, Heart, AlignLeft, Phone, Cloud,
+  Webhook, Kanban,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -12,6 +15,8 @@ import {
   siX, siInstagram, siYoutube, siSpotify, siDropbox,
   siZoom, siConfluence, siBitbucket, siGitkraken,
   si1password, siImessage, siApple, siMarkdown,
+  siGooglegemini, siObsidian, siSignal, siSonos, siThings,
+  siTmux, siPhilipshue, siNodedotjs, siOnnx,
 } from "simple-icons"
 import { cn } from "@/lib/utils"
 import type { GatewayEvent, SendRPC } from "@/hooks/useGatewayWS"
@@ -23,37 +28,46 @@ interface BrandDef {
 }
 
 const BRAND_PATTERNS: Array<{ pattern: RegExp; brand: BrandDef }> = [
-  { pattern: /github|\bgh\b/,      brand: { path: siGithub.path,        color: `#${siGithub.hex}` } },
-  { pattern: /1password|1pass/,   brand: { path: si1password.path,     color: `#${si1password.hex}` } },
-  { pattern: /imessage|imsg|bluebubble/, brand: { path: siImessage.path, color: `#${siImessage.hex}` } },
-  { pattern: /apple reminders|apple calendar/, brand: { path: siApple.path, color: `#${siApple.hex}` } },
+  { pattern: /github|\bgh\b/,          brand: { path: siGithub.path,        color: `#${siGithub.hex}` } },
+  { pattern: /1password|1pass/,        brand: { path: si1password.path,     color: `#${si1password.hex}` } },
+  { pattern: /imessage|imsg|bluebubble|imsg/, brand: { path: siImessage.path, color: `#${siImessage.hex}` } },
+  { pattern: /\bapple\b/,             brand: { path: siApple.path,         color: `#${siApple.hex}` } },
   { pattern: /markdown.*pdf|pdf.*markdown|markdowntopdf/, brand: { path: siMarkdown.path, color: `#${siMarkdown.hex}` } },
-  { pattern: /gitlab/,            brand: { path: siGitlab.path,        color: `#${siGitlab.hex}` } },
-  { pattern: /bitbucket/,         brand: { path: siBitbucket.path,     color: `#${siBitbucket.hex}` } },
-  { pattern: /gitkraken/,         brand: { path: siGitkraken.path,     color: `#${siGitkraken.hex}` } },
-  { pattern: /notion/,            brand: { path: siNotion.path,        color: `#${siNotion.hex}` } },
-  { pattern: /figma/,             brand: { path: siFigma.path,         color: `#${siFigma.hex}` } },
-  { pattern: /gmail/,             brand: { path: siGmail.path,         color: `#${siGmail.hex}` } },
-  { pattern: /google/,            brand: { path: siGoogle.path,        color: `#${siGoogle.hex}` } },
-  { pattern: /discord/,           brand: { path: siDiscord.path,       color: `#${siDiscord.hex}` } },
-  { pattern: /jira/,              brand: { path: siJira.path,          color: `#${siJira.hex}` } },
-  { pattern: /confluence/,        brand: { path: siConfluence.path,    color: `#${siConfluence.hex}` } },
-  { pattern: /whatsapp/,          brand: { path: siWhatsapp.path,      color: `#${siWhatsapp.hex}` } },
-  { pattern: /telegram/,          brand: { path: siTelegram.path,      color: `#${siTelegram.hex}` } },
-  { pattern: /linear/,            brand: { path: siLinear.path,        color: `#${siLinear.hex}` } },
-  { pattern: /trello/,            brand: { path: siTrello.path,        color: `#${siTrello.hex}` } },
-  { pattern: /asana/,             brand: { path: siAsana.path,         color: `#${siAsana.hex}` } },
-  { pattern: /airtable/,          brand: { path: siAirtable.path,      color: `#${siAirtable.hex}` } },
-  { pattern: /hubspot/,           brand: { path: siHubspot.path,       color: `#${siHubspot.hex}` } },
-  { pattern: /stripe/,            brand: { path: siStripe.path,        color: `#${siStripe.hex}` } },
-  { pattern: /shopify/,           brand: { path: siShopify.path,       color: `#${siShopify.hex}` } },
-  { pattern: /zapier/,            brand: { path: siZapier.path,        color: `#${siZapier.hex}` } },
-  { pattern: /\btwitter\b|\bx\b/, brand: { path: siX.path,            color: `#${siX.hex}` } },
-  { pattern: /instagram/,         brand: { path: siInstagram.path,     color: `#${siInstagram.hex}` } },
-  { pattern: /youtube/,           brand: { path: siYoutube.path,       color: `#${siYoutube.hex}` } },
-  { pattern: /spotify/,           brand: { path: siSpotify.path,       color: `#${siSpotify.hex}` } },
-  { pattern: /dropbox/,           brand: { path: siDropbox.path,       color: `#${siDropbox.hex}` } },
-  { pattern: /zoom/,              brand: { path: siZoom.path,          color: `#${siZoom.hex}` } },
+  { pattern: /gemini/,                 brand: { path: siGooglegemini.path,  color: `#${siGooglegemini.hex}` } },
+  { pattern: /obsidian/,               brand: { path: siObsidian.path,      color: `#${siObsidian.hex}` } },
+  { pattern: /\bsignal\b/,             brand: { path: siSignal.path,        color: `#${siSignal.hex}` } },
+  { pattern: /sonos|sonoscli/,         brand: { path: siSonos.path,         color: `#${siSonos.hex}` } },
+  { pattern: /\bthings\b/,             brand: { path: siThings.path,        color: `#${siThings.hex}` } },
+  { pattern: /\btmux\b/,               brand: { path: siTmux.path,          color: `#${siTmux.hex}` } },
+  { pattern: /openhue|philips.?hue|\bhue\b/, brand: { path: siPhilipshue.path, color: `#${siPhilipshue.hex}` } },
+  { pattern: /\bnode\b|nodeconnect/,   brand: { path: siNodedotjs.path,     color: `#${siNodedotjs.hex}` } },
+  { pattern: /\bonnx\b|sherpa/,        brand: { path: siOnnx.path,          color: `#${siOnnx.hex}` } },
+  { pattern: /gitlab/,                 brand: { path: siGitlab.path,        color: `#${siGitlab.hex}` } },
+  { pattern: /bitbucket/,              brand: { path: siBitbucket.path,     color: `#${siBitbucket.hex}` } },
+  { pattern: /gitkraken/,              brand: { path: siGitkraken.path,     color: `#${siGitkraken.hex}` } },
+  { pattern: /notion/,                 brand: { path: siNotion.path,        color: `#${siNotion.hex}` } },
+  { pattern: /figma/,                  brand: { path: siFigma.path,         color: `#${siFigma.hex}` } },
+  { pattern: /gmail/,                  brand: { path: siGmail.path,         color: `#${siGmail.hex}` } },
+  { pattern: /google/,                 brand: { path: siGoogle.path,        color: `#${siGoogle.hex}` } },
+  { pattern: /discord/,                brand: { path: siDiscord.path,       color: `#${siDiscord.hex}` } },
+  { pattern: /jira/,                   brand: { path: siJira.path,          color: `#${siJira.hex}` } },
+  { pattern: /confluence/,             brand: { path: siConfluence.path,    color: `#${siConfluence.hex}` } },
+  { pattern: /whatsapp|wacli/,         brand: { path: siWhatsapp.path,      color: `#${siWhatsapp.hex}` } },
+  { pattern: /telegram/,               brand: { path: siTelegram.path,      color: `#${siTelegram.hex}` } },
+  { pattern: /linear/,                 brand: { path: siLinear.path,        color: `#${siLinear.hex}` } },
+  { pattern: /trello/,                 brand: { path: siTrello.path,        color: `#${siTrello.hex}` } },
+  { pattern: /asana/,                  brand: { path: siAsana.path,         color: `#${siAsana.hex}` } },
+  { pattern: /airtable/,               brand: { path: siAirtable.path,      color: `#${siAirtable.hex}` } },
+  { pattern: /hubspot/,                brand: { path: siHubspot.path,       color: `#${siHubspot.hex}` } },
+  { pattern: /stripe/,                 brand: { path: siStripe.path,        color: `#${siStripe.hex}` } },
+  { pattern: /shopify/,                brand: { path: siShopify.path,       color: `#${siShopify.hex}` } },
+  { pattern: /zapier/,                 brand: { path: siZapier.path,        color: `#${siZapier.hex}` } },
+  { pattern: /\btwitter\b|\bx\b/,      brand: { path: siX.path,             color: `#${siX.hex}` } },
+  { pattern: /instagram/,              brand: { path: siInstagram.path,     color: `#${siInstagram.hex}` } },
+  { pattern: /youtube/,                brand: { path: siYoutube.path,       color: `#${siYoutube.hex}` } },
+  { pattern: /spotify/,                brand: { path: siSpotify.path,       color: `#${siSpotify.hex}` } },
+  { pattern: /dropbox/,                brand: { path: siDropbox.path,       color: `#${siDropbox.hex}` } },
+  { pattern: /zoom/,                   brand: { path: siZoom.path,          color: `#${siZoom.hex}` } },
 ]
 
 function getBrand(name: string, key: string): BrandDef | null {
@@ -102,26 +116,48 @@ function getGradient(key: string): [string, string] {
 
 function getSkillIcon(name: string, key: string): LucideIcon {
   const n = (name + " " + key).toLowerCase()
-  if (/commit|git/.test(n))             return GitCommit
-  if (/brows|fetch|http|web/.test(n))   return Globe
-  if (/ship|deploy|land/.test(n))       return Rocket
-  if (/qa|test|spec|flask/.test(n))     return TestTube
-  if (/review|inspect/.test(n))         return Code2
-  if (/investigat|debug|bug/.test(n))   return Bug
-  if (/design|visual|ui/.test(n))       return Palette
-  if (/plan|architect|layout/.test(n))  return Layers
-  if (/doc|file|write|read/.test(n))    return FileText
-  if (/search|find/.test(n))            return Search
-  if (/message|slack|chat/.test(n))     return MessageSquare
-  if (/terminal|bash|shell/.test(n))    return Terminal
-  if (/task|todo|check/.test(n))        return CheckSquare
-  if (/health|monitor|metric/.test(n))  return Activity
-  if (/security|cso|guard/.test(n))     return Shield
-  if (/retro|history/.test(n))          return RotateCcw
-  if (/context|save|restore/.test(n))   return BookMarked
-  if (/upgrade|update|version/.test(n)) return ArrowUpCircle
-  if (/setup|config|install/.test(n))   return Wrench
-  if (/cron|schedule|remind/.test(n))   return Clock
+  if (/commit/.test(n))                        return GitCommit
+  if (/\brepo\b/.test(n))                      return GitBranch
+  if (/brows|fetch|http|web/.test(n))          return Globe
+  if (/ship|deploy|land/.test(n))              return Rocket
+  if (/qa|test|spec|flask/.test(n))            return TestTube
+  if (/review|inspect/.test(n))                return Code2
+  if (/investigat|debug|bug/.test(n))          return Bug
+  if (/weather/.test(n))                       return Cloud
+  if (/voice.*call|call.*voice/.test(n))       return Phone
+  if (/webhook/.test(n))                       return Webhook
+  if (/meeting|ingestion/.test(n))             return Users
+  if (/video.*ingest|media.*ingest/.test(n))   return Film
+  if (/video|film|movie/.test(n))              return Film
+  if (/\bbrain\b/.test(n))                     return Brain
+  if (/cam|snap|photo/.test(n))                return Camera
+  if (/gif|image/.test(n))                     return Image
+  if (/idea/.test(n))                          return Lightbulb
+  if (/song|music/.test(n))                    return Music
+  if (/soul.*audit|audit.*soul/.test(n))       return Heart
+  if (/summar/.test(n))                        return AlignLeft
+  if (/kanban|taskflow/.test(n))               return Kanban
+  if (/skill.*creat|creat.*skill/.test(n))     return Wand2
+  if (/session.*log|log.*session/.test(n))     return ScrollText
+  if (/report/.test(n))                        return BarChart
+  if (/model.*usage|usage.*model/.test(n))     return BarChart
+  if (/minion|orchestrat/.test(n))             return Network
+  if (/data.*research|research.*data/.test(n)) return Database
+  if (/design|visual|ui/.test(n))              return Palette
+  if (/plan|architect|layout/.test(n))         return Layers
+  if (/doc|file|write|read/.test(n))           return FileText
+  if (/search|find/.test(n))                   return Search
+  if (/message|slack|chat/.test(n))            return MessageSquare
+  if (/terminal|bash|shell/.test(n))           return Terminal
+  if (/task|todo|check/.test(n))               return CheckSquare
+  if (/health|monitor|metric/.test(n))         return Activity
+  if (/security|cso|guard/.test(n))            return Shield
+  if (/retro|history/.test(n))                 return RotateCcw
+  if (/context|save|restore/.test(n))          return BookMarked
+  if (/upgrade|update|version/.test(n))        return ArrowUpCircle
+  if (/setup|config|install/.test(n))          return Wrench
+  if (/cron|schedule|remind/.test(n))          return Clock
+  if (/git/.test(n))                           return GitCommit
   return Zap
 }
 
