@@ -116,7 +116,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: tool-shimmer 1.8s ease-in-out infinite;
+  animation: tool-shimmer 3.5s linear infinite;
 }
 
 @keyframes msg-in {
